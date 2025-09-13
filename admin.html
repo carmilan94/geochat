@@ -28,172 +28,172 @@
       </div>
       <div id="roomsWrap" class="bg-white rounded-xl shadow divide-y"></div>
     </section>
+
+    <pre id="errBox" class="hidden mt-6 p-3 bg-yellow-50 text-yellow-800 rounded-lg text-xs whitespace-pre-wrap"></pre>
   </div>
 
-  <script type="module">
-    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
+  <!-- UMD build (no module import) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // Mostra eventuali errori a schermo
+    function showErr(e){
+      const box = document.getElementById('errBox');
+      box.textContent = String(e && e.message ? e.message : e);
+      box.classList.remove('hidden');
+      console.error(e);
+    }
 
     // === CONFIG SUPABASE ===
-    const supabase = createClient(
-      "https://lkdtvaiwlnkxwvlimvqs.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8"
-    );
+    const SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
+    const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
 
-    const authBox = document.getElementById('authBox');
+    let supabase;
+    try {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    } catch (e) { showErr(e); }
+
+    const authBox    = document.getElementById('authBox');
     const adminPanel = document.getElementById('adminPanel');
-    const notAdmin = document.getElementById('notAdmin');
-    const roomsWrap = document.getElementById('roomsWrap');
+    const notAdmin   = document.getElementById('notAdmin');
+    const roomsWrap  = document.getElementById('roomsWrap');
     const refreshBtn = document.getElementById('refreshBtn');
-    const searchInput = document.getElementById('searchInput');
+    const searchInput= document.getElementById('searchInput');
 
-    // --- UI login/logout (magic link)
     async function renderAuth(){
-      const { data: { user } } = await supabase.auth.getUser();
-      authBox.innerHTML = "";
-      if (!user) {
-        const input = document.createElement('input');
-        input.placeholder = 'Email';
-        input.className = 'px-3 py-2 border rounded-lg';
-        const btn = document.createElement('button');
-        btn.textContent = 'Invia magic link';
-        btn.className = 'px-3 py-2 rounded-lg bg-slate-900 text-white';
-        btn.onclick = async () => {
-          const email = input.value.trim();
-          if (!email) return;
-          const { error } = await supabase.auth.signInWithOtp({ email });
-          alert(error ? error.message : 'Controlla la tua email ✔️');
-        };
-        authBox.append(input, btn);
-        notAdmin.classList.remove('hidden');
-        adminPanel.classList.add('hidden');
-      } else {
-        const span = document.createElement('span');
-        span.textContent = user.email;
-        const out = document.createElement('button');
-        out.textContent = 'Esci';
-        out.className = 'px-3 py-2 rounded-lg border';
-        out.onclick = async ()=> { await supabase.auth.signOut(); location.reload(); };
-        authBox.append(span, out);
-
-        // verifica ruolo
-        const { data: prof, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          console.error(error);
+      try{
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) throw error;
+        authBox.innerHTML = "";
+        if (!user) {
+          const input = document.createElement('input');
+          input.placeholder = 'Email';
+          input.className = 'px-3 py-2 border rounded-lg';
+          const btn = document.createElement('button');
+          btn.textContent = 'Invia magic link';
+          btn.className = 'px-3 py-2 rounded-lg bg-slate-900 text-white';
+          btn.onclick = async () => {
+            try{
+              const email = input.value.trim();
+              if (!email) return;
+              const { error: e } = await supabase.auth.signInWithOtp({ email });
+              if (e) throw e;
+              alert('Controlla la tua email ✔️');
+            } catch(e){ showErr(e); }
+          };
+          authBox.append(input, btn);
           notAdmin.classList.remove('hidden');
           adminPanel.classList.add('hidden');
+        } else {
+          const span = document.createElement('span');
+          span.textContent = user.email;
+          const out = document.createElement('button');
+          out.textContent = 'Esci';
+          out.className = 'px-3 py-2 rounded-lg border';
+          out.onclick = async ()=> { await supabase.auth.signOut(); location.reload(); };
+          authBox.append(span, out);
+
+          const { data: prof, error: e2 } = await supabase
+            .from('profiles').select('role').eq('id', user.id).single();
+          if (e2) throw e2;
+
+          if (prof?.role === 'admin') {
+            notAdmin.classList.add('hidden');
+            adminPanel.classList.remove('hidden');
+            loadRooms();
+          } else {
+            notAdmin.classList.remove('hidden');
+            adminPanel.classList.add('hidden');
+          }
+        }
+      } catch(e){ showErr(e); }
+    }
+
+    async function loadRooms(){
+      roomsWrap.innerHTML = '<div class="p-4 text-slate-500">Carico…</div>';
+      try{
+        let query = supabase
+          .from('rooms')
+          .select('id,name,address,created_at')
+          .order('created_at', { ascending: false })
+          .limit(200);
+
+        const term = (searchInput.value||'').trim().toLowerCase();
+        let rooms;
+        if (term) {
+          const { data } = await query;
+          rooms = (data||[]).filter(x =>
+            (x.name||'').toLowerCase().includes(term) ||
+            (x.address||'').toLowerCase().includes(term)
+          );
+        } else {
+          const { data, error } = await query;
+          if (error) throw error;
+          rooms = data||[];
+        }
+
+        const cutoff = new Date(Date.now() - 2*60*1000).toISOString();
+        const { data: pres } = await supabase
+          .from('room_presence')
+          .select('room_id,last_seen')
+          .gt('last_seen', cutoff);
+
+        const countMap = {};
+        (pres||[]).forEach(r => { countMap[r.room_id] = (countMap[r.room_id]||0) + 1; });
+
+        roomsWrap.innerHTML = '';
+        if (!rooms.length) {
+          roomsWrap.innerHTML = '<div class="p-4 text-slate-500">Nessuna stanza trovata.</div>';
           return;
         }
 
-        if (prof?.role === 'admin') {
-          notAdmin.classList.add('hidden');
-          adminPanel.classList.remove('hidden');
-          loadRooms();
-        } else {
-          notAdmin.classList.remove('hidden');
-          adminPanel.classList.add('hidden');
-        }
-      }
+        rooms.forEach(r => {
+          const row = document.createElement('div');
+          row.className = 'p-4 flex items-center justify-between';
+
+          const left = document.createElement('div');
+          left.innerHTML = `
+            <div class="font-medium">${escapeHtml(r.name || '—')}</div>
+            <div class="text-sm text-slate-600">${escapeHtml(r.address || '—')}</div>
+            <div class="text-xs text-slate-500">${new Date(r.created_at).toLocaleString()}</div>
+            <div class="mt-2">
+              <a class="text-xs text-slate-700 underline" href="${location.origin + location.pathname.replace('admin.html','')}?room=${r.id}" target="_blank">Apri come utente</a>
+            </div>
+          `;
+
+          const right = document.createElement('div');
+          right.className = 'flex items-center gap-2';
+
+          const badge = document.createElement('span');
+          badge.className = 'text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700';
+          badge.textContent = (countMap[r.id]||0) + ' online';
+
+          const del = document.createElement('button');
+          del.textContent = 'Elimina';
+          del.className = 'px-3 py-2 rounded-lg bg-rose-600 text-white';
+          del.onclick = async () => {
+            if (!confirm('Eliminare la stanza?')) return;
+            try{
+              const { error: e } = await supabase.from('rooms').delete().eq('id', r.id);
+              if (e) throw e;
+              loadRooms();
+            } catch(e){ showErr(e); }
+          };
+
+          right.append(badge, del);
+          row.append(left, right);
+          roomsWrap.append(row);
+        });
+      } catch(e){ showErr(e); }
     }
 
-    // --- carica stanze + presence
-    async function loadRooms(){
-      roomsWrap.innerHTML = '<div class="p-4 text-slate-500">Carico…</div>';
-
-      // 1) stanze
-      let query = supabase
-        .from('rooms')
-        .select('id,name,address,created_at')
-        .order('created_at', { ascending: false })
-        .limit(200);
-
-      const term = searchInput.value.trim().toLowerCase();
-      if (term) {
-        // filtro lato client (semplice)
-        const { data: r } = await query;
-        const rooms = (r||[]).filter(x =>
-          (x.name||'').toLowerCase().includes(term) ||
-          (x.address||'').toLowerCase().includes(term)
-        );
-        await renderRooms(rooms);
-        return;
-      }
-
-      const { data: rooms, error } = await query;
-      if (error) { roomsWrap.innerHTML = `<div class="p-4 text-rose-600">${error.message}</div>`; return; }
-
-      await renderRooms(rooms || []);
-    }
-
-    async function renderRooms(rooms){
-      // 2) presence recenti (ultimi 2 minuti)
-      const cutoff = new Date(Date.now() - 2*60*1000).toISOString();
-      const { data: pres } = await supabase
-        .from('room_presence')
-        .select('room_id,last_seen')
-        .gt('last_seen', cutoff);
-
-      const countMap = {};
-      (pres||[]).forEach(r => { countMap[r.room_id] = (countMap[r.room_id]||0) + 1; });
-
-      // Render
-      roomsWrap.innerHTML = '';
-      if (!rooms.length) {
-        roomsWrap.innerHTML = '<div class="p-4 text-slate-500">Nessuna stanza trovata.</div>';
-        return;
-      }
-
-      rooms.forEach(r => {
-        const row = document.createElement('div');
-        row.className = 'p-4 flex items-center justify-between';
-
-        const left = document.createElement('div');
-        left.innerHTML = `
-          <div class="font-medium">${escapeHtml(r.name || '—')}</div>
-          <div class="text-sm text-slate-600">${escapeHtml(r.address || '—')}</div>
-          <div class="text-xs text-slate-500">${new Date(r.created_at).toLocaleString()}</div>
-          <div class="mt-2">
-            <a class="text-xs text-slate-700 underline" href="${location.origin + location.pathname.replace('admin.html','')}?room=${r.id}" target="_blank">Apri come utente</a>
-          </div>
-        `;
-
-        const right = document.createElement('div');
-        right.className = 'flex items-center gap-2';
-
-        const badge = document.createElement('span');
-        badge.className = 'text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700';
-        badge.textContent = (countMap[r.id]||0) + ' online';
-
-        const del = document.createElement('button');
-        del.textContent = 'Elimina';
-        del.className = 'px-3 py-2 rounded-lg bg-rose-600 text-white';
-        del.onclick = async () => {
-          if (!confirm('Eliminare la stanza?')) return;
-          const { error: e } = await supabase.from('rooms').delete().eq('id', r.id);
-          if (e) alert(e.message); else loadRooms();
-        };
-
-        right.append(badge, del);
-        row.append(left, right);
-        roomsWrap.append(row);
-      });
-    }
-
-    // utils
     function escapeHtml(s=''){
       return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
 
-    // eventi
-    refreshBtn.onclick = loadRooms;
-    searchInput.addEventListener('input', () => { loadRooms(); });
+    refreshBtn && (refreshBtn.onclick = loadRooms);
+    searchInput && searchInput.addEventListener('input', () => { loadRooms(); });
 
-    // auth change
-    supabase.auth.onAuthStateChange((_e) => renderAuth());
+    // Render all
     renderAuth();
   </script>
 </body>
