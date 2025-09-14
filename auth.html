@@ -8,11 +8,12 @@
   <link rel="icon" href="data:,">
   <style>
     body{min-height:100vh}
-    /* Toggle tab SOLO con CSS */
+    /* Stato base dei pannelli */
+    .panes #paneLogin  { display:block; }
+    .panes #paneSignup { display:none;  }
+    /* Toggle SOLO con CSS tramite radio */
     #tab-login:checked  ~ .tabs #lblLogin  { background:#0f172a; color:#fff; }
     #tab-signup:checked ~ .tabs #lblSignup { background:#0f172a; color:#fff; }
-    #tab-login:checked  ~ .panes #paneLogin  { display:block; }
-    #tab-login:checked  ~ .panes #paneSignup { display:none;  }
     #tab-signup:checked ~ .panes #paneLogin  { display:none;  }
     #tab-signup:checked ~ .panes #paneSignup { display:block; }
     .tab-btn { @apply py-2 rounded-lg border text-center cursor-pointer; }
@@ -49,8 +50,8 @@
           <button id="btnLogin" type="submit" class="w-full py-2 rounded-lg bg-slate-900 text-white">Accedi</button>
         </form>
 
-        <!-- SIGNUP -->
-        <form id="paneSignup" class="mt-4 space-y-3 hidden">
+        <!-- SIGNUP (niente 'hidden' qui) -->
+        <form id="paneSignup" class="mt-4 space-y-3">
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="text-sm">Nome</label>
@@ -81,7 +82,7 @@
       <p class="mt-2 text-center">
         <a href="/" class="text-sm text-slate-700 underline">Torna alla Home</a>
       </p>
-      <p class="text-center text-xs text-slate-400 mt-2">build: v5</p>
+      <p class="text-center text-xs text-slate-400 mt-2">build: v6</p>
     </div>
   </div>
 
