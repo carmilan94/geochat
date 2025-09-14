@@ -13,6 +13,7 @@
     .nav{display:flex;align-items:center;justify-content:space-between}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
     .btn{padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:#16161a;color:var(--fg);cursor:pointer}
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
     .btn.primary{background:linear-gradient(90deg,var(--brand),var(--brand2));color:#111;font-weight:700;border:none}
     .btn.danger{background:#1a1112;border-color:#442325;color:#ffb3b3}
     .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px;margin-top:16px}
@@ -26,7 +27,7 @@
     @media(max-width:600px){.profile-header{grid-template-columns:1fr;justify-items:center;text-align:center}}
     .h1{font-size:26px;font-weight:800;margin:0}
     .sub{margin:6px 0 0}
-    /* pannello edit (semplice) */
+    /* pannello edit */
     .edit{margin-top:16px;border-top:1px dashed var(--border);padding-top:16px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     @media(max-width:720px){.grid{grid-template-columns:1fr}}
@@ -46,7 +47,7 @@
     .list{display:flex;flex-direction:column;gap:12px;max-height:50vh;overflow:auto;margin:12px 0}
     .item{display:grid;grid-template-columns:72px 1fr;gap:12px;align-items:center;background:#101015;border:1px solid var(--border);padding:8px;border-radius:12px}
     .item img{width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--border)}
-    .item input{width:100%;background:#0e0e12;border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--fg)}
+    .item input{width:100%;background:#0e0e12;border:1px solid var(--border);border-radius:10px;padding:10px;color:#fff}
     .bar{height:6px;background:#0e0e12;border:1px solid var(--border);border-radius:999px;overflow:hidden}
     .bar span{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--brand),var(--brand2))}
   </style>
@@ -86,13 +87,13 @@
         </div>
       </div>
 
-      <!-- PANNELLO EDIT SEMPLICE -->
+      <!-- PANNELLO EDIT -->
       <div id="editPanel" class="edit" style="display:none">
-        <form id="profileForm" class="grid">
+        <form id="profileForm" class="grid" onsubmit="return false">
           <div class="field" style="grid-column:1/-1">
             <label for="avatarFile">Foto profilo</label>
             <input type="file" id="avatarFile" accept="image/*"/>
-            <p class="muted" style="margin:6px 0 0">Seleziona la foto e premi <b>Salva modifiche</b>. Si chiuderà il pannello e l’avatar resterà impostato.</p>
+            <p class="muted" style="margin:6px 0 0">Seleziona la foto e premi <b>Salva modifiche</b>. Il pannello si chiuderà e l’avatar resterà.</p>
           </div>
           <div class="field">
             <label for="display_name">Nome visualizzato</label>
@@ -112,7 +113,7 @@
           </div>
           <div class="row" style="grid-column:1/-1;justify-content:flex-end">
             <button class="btn" type="button" id="reloadBtn">Ricarica</button>
-            <button class="btn primary" type="submit">Salva modifiche</button>
+            <button class="btn primary" type="button" id="saveBtn">Salva modifiche</button>
             <button class="btn danger" type="button" id="removeAvatarBtn">Rimuovi avatar</button>
           </div>
         </form>
@@ -179,10 +180,10 @@
       qs('#logoutBtn').addEventListener('click', async () => { await supabase.auth.signOut(); location.href = 'auth.html'; });
       qs('#editToggle').addEventListener('click', toggleEdit);
       qs('#reloadBtn').addEventListener('click', loadProfile);
-      qs('#profileForm').addEventListener('submit', onSave);
+      qs('#saveBtn').addEventListener('click', onSave);  // <— SALVA esplicito
       qs('#removeAvatarBtn').addEventListener('click', onRemoveAvatar);
 
-      // Anteprima avatar immediata
+      // Anteprima avatar
       qs('#avatarFile').addEventListener('change', (e)=>{
         const f = e.target.files?.[0]; if(!f) return;
         qs('#avatarImg').src = URL.createObjectURL(f);
@@ -245,47 +246,53 @@
     }
 
     // === SALVA (avatar + dati) e CHIUDE pannello ===
-    async function onSave(e){
-      e.preventDefault(); clearErr();
+    async function onSave(){
+      clearErr();
+      const saveBtn = qs('#saveBtn');
+      saveBtn.disabled = true;
+      const oldTxt = saveBtn.textContent;
+      saveBtn.textContent = 'Salvo…';
 
-      // 1) Selezionato nuovo avatar? Caricalo adesso
-      let avatarUrlToSave = null;
-      const file = qs('#avatarFile').files?.[0];
-      if (file) {
-        try {
+      try {
+        // 1) Upload avatar se presente
+        let avatarUrlToSave = null;
+        const file = qs('#avatarFile').files?.[0];
+        if (file) {
           const safe = file.name.replace(/\s+/g,'_');
           const path = `${user.id}/${Date.now()}_${safe}`;
           const up = await supabase.storage.from('avatars').upload(path, file, { upsert:false });
           if (up.error) throw up.error;
           const pub = supabase.storage.from('avatars').getPublicUrl(path);
           avatarUrlToSave = pub.data?.publicUrl || null;
-        } catch (err) {
-          showErr("Upload avatar: " + (err?.message || err));
-          return;
         }
+
+        // 2) Upsert profilo
+        const payload = {
+          id: user.id,
+          display_name: qs('#display_name').value.trim() || null,
+          location: qs('#location').value.trim() || null,
+          age: qs('#age').value ? Number(qs('#age').value) : null,
+          bio: qs('#bio').value.trim() || null
+        };
+        if (avatarUrlToSave) payload.avatar_url = avatarUrlToSave;
+
+        const { error } = await supabase.from('profiles').upsert(payload, { onConflict:'id' });
+        if (error) throw error;
+
+        // 3) UI update
+        if (avatarUrlToSave) {
+          qs('#avatarImg').src = avatarUrlToSave + `?t=${Date.now()}`;
+          qs('#avatarFile').value = '';
+        }
+        toggleEdit();               // chiude pannello
+        toast('Profilo aggiornato');
+        await loadProfile();        // rilegge dal DB
+      } catch (err) {
+        showErr("Errore salvataggio: " + (err?.message || err));
+      } finally {
+        saveBtn.textContent = oldTxt;
+        saveBtn.disabled = false;
       }
-
-      // 2) Salva i dati profilo (+ eventuale avatar_url)
-      const payload = {
-        id: user.id,
-        display_name: qs('#display_name').value.trim() || null,
-        location: qs('#location').value.trim() || null,
-        age: qs('#age').value ? Number(qs('#age').value) : null,
-        bio: qs('#bio').value.trim() || null
-      };
-      if (avatarUrlToSave) payload.avatar_url = avatarUrlToSave;
-
-      const { error } = await supabase.from('profiles').upsert(payload, { onConflict:'id' });
-      if (error) { showErr("Errore salvataggio: " + error.message); return; }
-
-      // 3) UI: chiudi pannello + pulisci file + aggiorna avatar
-      if (avatarUrlToSave) {
-        qs('#avatarImg').src = avatarUrlToSave + `?t=${Date.now()}`;
-        qs('#avatarFile').value = '';
-      }
-      toggleEdit(); // chiude il pannello
-      toast('Profilo aggiornato');
-      await loadProfile(); // ricarica dai dati salvati
     }
 
     async function onRemoveAvatar(){
