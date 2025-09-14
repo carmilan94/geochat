@@ -4,359 +4,148 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>GeoChat • Home</title>
-
-  <!-- Tailwind per MVP -->
   <script src="https://cdn.tailwindcss.com"></script>
-
   <style>
-    :root{
-      --bg:#0b0b0b;
-      --panel:#111213;
-      --muted:rgba(255,255,255,.6);
-      --muted2:rgba(255,255,255,.4);
-      --brand1:#FFB000;
-      --brand2:#FF6A00;
-    }
-    body{background:var(--bg); color:white}
-    .brand-grad{background:linear-gradient(135deg,var(--brand1),var(--brand2))}
-    .brand-text{background:linear-gradient(135deg,var(--brand1),var(--brand2)); -webkit-background-clip:text; background-clip:text; color:transparent;}
-    .card{background:#141414; border:1px solid rgba(255,255,255,.08)}
+    :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233;}
+    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea;}
+    .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
+    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
+    .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+    a,button{outline:0}
   </style>
-
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Google Maps (Join) -->
-  <script>
-    // flag usato per capire quando la Maps è pronta
-    window.__googleReady = false;
-    function onGoogleReady(){ window.__googleReady = true; }
-  </script>
-  <script async defer
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=geometry&callback=onGoogleReady">
-  </script>
 </head>
-
 <body class="min-h-screen">
-  <!-- NAV -->
-  <header class="w-full bg-gradient-to-b from-[#1a1208] to-transparent">
-    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
-      <a href="/" class="flex items-center gap-2">
-        <div class="w-9 h-9 rounded-xl brand-grad grid place-items-center font-bold text-black">GC</div>
-        <div class="text-lg font-semibold">GeoChat</div>
-      </a>
-      <div class="ml-auto flex items-center gap-2">
-        <a href="/index.html" class="px-3 py-2 rounded-md hover:bg-white/5">Home</a>
-        <a id="linkCreate" href="/create.html" class="px-3 py-2 rounded-md hover:bg-white/5">Crea la tua chat</a>
-        <a id="linkAdmin" href="/admin.html" class="px-3 py-2 rounded-md hover:bg-white/5 hidden">Admin</a>
-        <button id="btnLogout" class="px-3 py-2 rounded-md bg-white/10 hover:bg-white/15">Esci</button>
-      </div>
-    </div>
-  </header>
+<header class="w-full py-4 px-5 flex items-center justify-between">
+  <div class="flex items-center gap-2">
+    <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-bold text-black">GC</div>
+    <div class="font-extrabold text-xl">GeoChat</div>
+  </div>
+  <nav class="flex items-center gap-3 text-sm">
+    <a href="index.html" class="chip px-3 py-1.5 rounded-lg">Home</a>
+    <a href="create.html" class="chip px-3 py-1.5 rounded-lg">Crea la tua chat</a>
+    <a href="admin.html" class="chip px-3 py-1.5 rounded-lg">Admin</a>
+    <a id="authLink" href="auth.html" class="btn-main px-4 py-1.5 rounded-lg">Entra</a>
+  </nav>
+</header>
 
-  <!-- HERO -->
-  <section class="w-full">
-    <div class="max-w-6xl mx-auto px-4">
-      <div class="rounded-2xl p-6 md:p-8 bg-gradient-to-br from-[#2a1c0e] to-[#120c06] border border-white/10 mt-4">
+<main class="max-w-4xl mx-auto px-4 pb-20">
+  <section class="glass rounded-2xl p-5 mb-6">
+    <h2 class="text-xl font-bold mb-2">Chat vicino a te</h2>
+    <p class="text-sm opacity-80">Vedi le chat disponibili, la distanza e apri le indicazioni con Google Maps.</p>
+    <div class="mt-4 flex items-center gap-3">
+      <button id="btnGeo" class="chip px-4 py-2 rounded-lg flex items-center gap-2">
+        <span>📍</span><span>Usa la mia posizione</span>
+      </button>
+      <div id="geoState" class="text-xs opacity-80">Posizione non disponibile (lista non ordinata).</div>
+    </div>
+  </section>
+
+  <section id="roomsList" class="grid gap-4"></section>
+</main>
+
+<script>
+  // ---- CONFIG SUPABASE
+  const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  // 1) Se arrivo con ?room=XXXX reindirizzo SUBITO a join.html
+  (function autoRedirectToJoin(){
+    const p = new URLSearchParams(location.search);
+    const r = p.get('room');
+    if (r) location.replace(`join.html?room=${encodeURIComponent(r)}`);
+  })();
+
+  // 2) Stato auth: mostra "Esci" se loggato
+  async function setAuthLink(){
+    const { data: { session } } = await sb.auth.getSession();
+    const link = document.getElementById('authLink');
+    if (session){
+      link.textContent = 'Esci';
+      link.onclick = async (e)=>{ e.preventDefault(); await sb.auth.signOut(); location.reload(); }
+    } else {
+      link.textContent = 'Entra';
+      link.href = 'auth.html';
+      link.onclick = null;
+    }
+  }
+  setAuthLink();
+
+  // 3) Carico rooms
+  let myPos = null;
+  document.getElementById('btnGeo').onclick = ()=>{
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        document.getElementById('geoState').textContent = 'Posizione attiva: le distanze saranno calcolate (se possibile).';
+        renderRooms();
+      },
+      _ => { alert('Impossibile ottenere la posizione.'); }
+    );
+  }
+
+  async function fetchRooms(){
+    const { data, error } = await sb.from('rooms')
+      .select('id,name,description,address,center_lat,center_lng,created_at')
+      .order('created_at',{ascending:false});
+    if (error){ console.error(error); return []; }
+    return data || [];
+  }
+
+  function distanceKm(a,b){
+    const R=6371; const dLat=(b.lat-a.lat)*Math.PI/180; const dLng=(b.lng-a.lng)*Math.PI/180;
+    const s1=Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+    return 2*R*Math.asin(Math.sqrt(s1));
+  }
+
+  async function renderRooms(){
+    const cont = document.getElementById('roomsList');
+    cont.innerHTML = '<div class="opacity-60">Carico…</div>';
+    let rooms = await fetchRooms();
+
+    // se ho posizione, ordino per distanza
+    if (myPos){
+      rooms = rooms.map(r => ({...r, _dist: distanceKm(myPos,{lat:r.center_lat,lng:r.center_lng}) }))
+                   .sort((a,b)=> a._dist-b._dist);
+    }
+
+    cont.innerHTML = '';
+    if (!rooms.length){
+      cont.innerHTML = '<div class="glass rounded-xl p-5 opacity-80">Nessuna stanza trovata.</div>';
+      return;
+    }
+
+    for (const r of rooms){
+      const dTxt = myPos ? `${r._dist.toFixed(1)} km` : 'distanza sconosciuta';
+      const card = document.createElement('div');
+      card.className='glass rounded-xl p-5 flex flex-col gap-3';
+      card.innerHTML = `
         <div class="flex items-center justify-between">
-          <div>
-            <div class="uppercase tracking-widest text-xs text-white/60">Trova le chat vicino a te</div>
-            <h1 class="text-2xl md:text-3xl font-semibold mt-1">MVP • <span class="brand-text">Supabase + Google Maps</span></h1>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- HOME -->
-  <main id="homeSection" class="max-w-6xl mx-auto px-4 mt-6">
-    <div class="grid md:grid-cols-2 gap-5">
-      <!-- posizione -->
-      <div class="rounded-2xl p-5 card">
-        <h2 class="text-lg font-semibold mb-3">Chat vicine a te</h2>
-        <p class="text-sm text-white/70">
-          Vedi le chat disponibili, la distanza dalla tua posizione e apri le indicazioni con Google Maps.
-        </p>
-        <div class="flex items-center gap-3 mt-4">
-          <button id="btnUseGps" class="px-3 py-2 rounded-md bg-amber-500/90 hover:bg-amber-500 text-black text-sm">
-            📍 Usa la mia posizione
-          </button>
-          <div id="geoHint" class="text-sm text-white/60">Posizione non disponibile (lista non ordinata).</div>
-        </div>
-      </div>
-
-      <!-- lista -->
-      <div class="rounded-2xl p-5 card">
-        <h3 class="text-base font-medium mb-3">Disponibili</h3>
-        <div id="roomsWrap"></div>
-      </div>
-    </div>
-  </main>
-
-  <!-- JOIN -->
-  <section id="joinSection" class="max-w-6xl mx-auto px-4 mt-6 hidden">
-    <div class="grid lg:grid-cols-3 gap-5">
-      <div class="rounded-2xl p-5 card lg:col-span-2">
-        <h3 id="joinTitle" class="text-lg font-semibold">Chat</h3>
-        <div id="joinAddr" class="text-sm text-white/60 mt-1"></div>
-        <div id="joinMap" class="w-full h-[380px] rounded-xl mt-4 overflow-hidden"></div>
-        <div class="text-sm text-white/70 mt-3" id="joinMsg">Verifica in corso…</div>
-      </div>
-
-      <div class="rounded-2xl p-5 card">
-        <div class="text-sm text-white/70">
-          Per entrare devi essere <b>dentro</b> al perimetro del locale.
-        </div>
-        <button id="joinEnterBtn" disabled
-          class="w-full mt-4 px-4 py-3 rounded-lg brand-grad text-black font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
-          Entra nella chat
-        </button>
-        <a href="/" class="block text-center mt-3 text-sm text-white/70 hover:text-white/90">Torna alla Home</a>
-      </div>
-    </div>
-  </section>
-
-  <footer class="max-w-6xl mx-auto px-4 py-10 text-sm text-white/50">
-    GeoChat © 2025 • MVP
-  </footer>
-
-  <!-- APP -->
-  <script type="module">
-    // ------------- Supabase -------------
-    const SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
-    const { createClient } = window.supabase;
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // redirect se non loggato
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { window.location.href = "/auth.html"; }
-
-    // mostra link Admin se admin
-    (async () => {
-      try {
-        const uid = session.user.id;
-        const { data } = await supabase.from('profiles').select('role').eq('id', uid).single();
-        if (data?.role === 'admin') document.getElementById('linkAdmin')?.classList.remove('hidden');
-      } catch {}
-    })();
-
-    // logout
-    document.getElementById('btnLogout')?.addEventListener('click', async () => {
-      await supabase.auth.signOut();
-      window.location.href = '/auth.html';
-    });
-
-    // ------------- DOM refs -------------
-    const homeSection  = document.getElementById('homeSection');
-    const joinSection  = document.getElementById('joinSection');
-    const btnUseGps    = document.getElementById('btnUseGps');
-    const roomsWrap    = document.getElementById('roomsWrap');
-    const joinTitle    = document.getElementById('joinTitle');
-    const joinAddr     = document.getElementById('joinAddr');
-    const joinMsg      = document.getElementById('joinMsg');
-    const joinEnterBtn = document.getElementById('joinEnterBtn');
-    const joinMapEl    = document.getElementById('joinMap');
-
-    // ------------- State -------------
-    let currentPos = null;
-    let currentRoom = null;
-    let joinMap, joinPolygon, joinMarker;
-
-    // ------------- Utils -------------
-    function esc(s=''){ return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-    function waitGoogle(){
-      return new Promise(res=>{
-        if (window.__googleReady && window.google && google.maps) return res();
-        const t = setInterval(()=>{
-          if (window.__googleReady && window.google && google.maps){ clearInterval(t); res(); }
-        },50);
-        setTimeout(()=>{ clearInterval(t); res(); }, 4000); // comunque non bloccare
-      });
-    }
-    function getPositionOnce(){
-      return new Promise((resolve,reject)=>{
-        if(!navigator.geolocation) return reject(new Error('Geolocalizzazione non disponibile'));
-        navigator.geolocation.getCurrentPosition(
-          pos => resolve({lat:pos.coords.latitude,lng:pos.coords.longitude}),
-          err => reject(err),
-          {enableHighAccuracy:true,timeout:10000,maximumAge:0}
-        );
-      });
-    }
-    function pointInPolygon(point, poly){
-      let x=point.lng, y=point.lat, inside=false;
-      for (let i=0,j=poly.length-1;i<poly.length;j=i++){
-        const xi=poly[i].lng, yi=poly[i].lat, xj=poly[j].lng, yj=poly[j].lat;
-        const intersect=((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/((yj-yi)+1e-12)+xi);
-        if (intersect) inside=!inside;
-      }
-      return inside;
-    }
-    function haversineKm(a,b){
-      const R=6371, dLat=(b.lat-a.lat)*Math.PI/180, dLng=(b.lng-a.lng)*Math.PI/180;
-      const s=Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*(Math.sin(dLng/2)**2);
-      return 2*R*Math.asin(Math.sqrt(s));
-    }
-
-    // ------------- Load rooms -------------
-    async function loadRooms(){
-      const { data, error } = await supabase.from('rooms').select('*').order('created_at',{ascending:false});
-      if (error){ roomsWrap.innerHTML = `<div class="text-red-400 text-sm">Errore: ${error.message}</div>`; return; }
-
-      roomsWrap.innerHTML = '';
-      data.forEach(r=>{
-        const card = document.createElement('div');
-        card.className = 'rounded-xl bg-[#141414] border border-white/10 p-4 mb-4 flex items-start gap-4';
-
-        const dist = currentPos ? `${haversineKm(currentPos,{lat:r.center_lat,lng:r.center_lng}).toFixed(1)} km` : 'sconosciuta';
-
-        card.innerHTML = `
-          <div class="flex-shrink-0 w-10 h-10 rounded-full brand-grad grid place-items-center font-extrabold text-black">GC</div>
-          <div class="flex-1">
-            <div class="flex items-center gap-2">
-              <h3 class="font-semibold text-white">${esc(r.name || 'Senza nome')}</h3>
-              <span class="text-xs text-white/50 px-2 py-0.5 rounded bg-white/10">Attiva</span>
-            </div>
-            <div class="text-xs text-white/60 mt-2">Distanza: <span class="room-dist">${dist}</span></div>
-            <div class="text-sm text-white/80 mt-1">${esc(r.address || '')}</div>
-            ${r.description ? `<div class="text-xs text-white/60 mt-1">${esc(r.description)}</div>` : ''}
-            <div class="mt-3 flex gap-2">
-              <a target="_blank"
-                href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(r.address || `${r.center_lat},${r.center_lng}`)}"
-                class="px-3 py-2 rounded-md bg-amber-500/90 hover:bg-amber-500 text-black text-sm">
-                Apri in Google Maps
-              </a>
-              <button class="px-3 py-2 rounded-md bg-white/10 hover:bg-white/15 text-white text-sm"
-                data-open-room="${r.id}">
-                Apri chat
-              </button>
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-amber-500 text-black font-bold flex items-center justify-center">GC</div>
+            <div>
+              <div class="font-bold text-lg">${r.name || 'Senza nome'}</div>
+              <div class="text-xs opacity-80">Distanza: ${dTxt}</div>
             </div>
           </div>
-        `;
-        roomsWrap.appendChild(card);
-      });
+          <span class="chip px-3 py-1 rounded-lg text-xs">Attiva</span>
+        </div>
+        <div class="text-sm opacity-90">${r.address || ''}</div>
+        <div class="text-sm opacity-70">${r.description || ''}</div>
+        <div class="flex gap-2">
+          <a class="btn-main rounded-lg px-4 py-2 text-sm" target="_blank"
+             href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(r.center_lat+','+r.center_lng)}">
+             Apri in Google Maps
+          </a>
+          <a class="chip rounded-lg px-4 py-2 text-sm" href="join.html?room=${encodeURIComponent(r.id)}">Apri chat</a>
+        </div>
+      `;
+      cont.appendChild(card);
     }
-
-    // ------------- JOIN -------------
-    async function openJoin(roomId){
-      // vista
-      homeSection.classList.add('hidden');
-      joinSection.classList.remove('hidden');
-
-      // dati stanza
-      const { data:room, error } = await supabase.from('rooms').select('*').eq('id', roomId).single();
-      if (error || !room){
-        joinTitle.textContent='Chat non trovata';
-        joinAddr.textContent='';
-        joinMsg.textContent= error ? error.message : 'ID non valido.';
-        joinEnterBtn.disabled=true;
-        return;
-      }
-      currentRoom = room;
-
-      joinTitle.textContent = room.name || 'Chat';
-      joinAddr.textContent  = room.address || '';
-      joinEnterBtn.dataset.room = room.id;
-
-      // prepara mappa
-      await waitGoogle();
-      if (!window.google || !google.maps){
-        joinMsg.textContent = 'Mappe non disponibili.';
-        joinEnterBtn.disabled = true;
-        return;
-      }
-
-      if (!joinMap){
-        joinMap = new google.maps.Map(joinMapEl,{center:{lat:room.center_lat,lng:room.center_lng}, zoom:17});
-      } else {
-        joinMap.setCenter({lat:room.center_lat,lng:room.center_lng});
-        joinMap.setZoom(17);
-      }
-
-      if (joinMarker) joinMarker.setMap(null);
-      joinMarker = new google.maps.Marker({ position:{lat:room.center_lat,lng:room.center_lng}, map:joinMap });
-
-      if (joinPolygon) joinPolygon.setMap(null);
-      const coords = (room.polygon?.coordinates?.[0] || []).map(([lng,lat])=>({lat,lng}));
-      if (coords.length>2){
-        joinPolygon = new google.maps.Polygon({
-          paths:coords, strokeColor:"#22c55e", strokeOpacity:.9, strokeWeight:2,
-          fillColor:"#22c55e", fillOpacity:.15, map:joinMap
-        });
-      }
-
-      // ottieni/riusa posizione
-      if (!currentPos){
-        try{ currentPos = await getPositionOnce(); }
-        catch(e){
-          joinMsg.textContent = "Posizione non disponibile. Abilita la posizione per entrare.";
-          joinEnterBtn.disabled = true;
-          return;
-        }
-      }
-
-      // geofence
-      let allowed = true;
-      if (coords.length>2) allowed = pointInPolygon(currentPos, coords);
-
-      if (allowed){
-        joinMsg.textContent = "Sei dentro al perimetro ✅";
-        joinEnterBtn.disabled = false;
-      }else{
-        joinMsg.textContent = "Sei fuori dal perimetro ❌";
-        joinEnterBtn.disabled = true;
-      }
-    }
-
-    // ------------- Router -------------
-    function handleRoute(){
-      const roomId = new URLSearchParams(location.search).get('room');
-      if (roomId) openJoin(roomId);
-      else { joinSection.classList.add('hidden'); homeSection.classList.remove('hidden'); loadRooms(); }
-    }
-    window.addEventListener('popstate', handleRoute);
-
-    // ------------- Eventi -------------
-    btnUseGps?.addEventListener('click', async ()=>{
-      try{
-        currentPos = await getPositionOnce();
-        await loadRooms();
-        // ordina cards per distanza
-        const cards = [...roomsWrap.children];
-        cards.sort((a,b)=>{
-          const va = parseFloat(a.querySelector('.room-dist')?.textContent)||1e9;
-          const vb = parseFloat(b.querySelector('.room-dist')?.textContent)||1e9;
-          return va - vb;
-        });
-        roomsWrap.replaceChildren(...cards);
-        document.getElementById('geoHint').textContent = 'Posizione attiva (lista ordinata)';
-      }catch{
-        document.getElementById('geoHint').textContent = 'Posizione non disponibile (lista non ordinata)';
-      }
-    });
-
-    // Apri chat SENZA reload (pushState + openJoin)
-    roomsWrap.addEventListener('click', e=>{
-      const btn = e.target.closest('[data-open-room]');
-      if (!btn) return;
-      const id = btn.getAttribute('data-open-room');
-      history.pushState({room:id}, '', '?room='+encodeURIComponent(id));
-      openJoin(id);
-    });
-
-    // Entra (porta alla chat vera e propria)
-    joinEnterBtn?.addEventListener('click', ()=>{
-      const id = joinEnterBtn.dataset.room;
-      if (!id) return;
-      location.assign('/chat.html?room='+encodeURIComponent(id));
-    });
-
-    // ------------- Boot -------------
-    document.addEventListener('DOMContentLoaded', ()=>{
-      handleRoute();
-      loadRooms();
-    });
-  </script>
+  }
+  renderRooms();
+</script>
 </body>
 </html>
