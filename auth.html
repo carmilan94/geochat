@@ -6,7 +6,17 @@
   <title>GeoChat • Accedi / Registrati</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="icon" href="data:,">
-  <style> body{min-height:100vh} </style>
+  <style>
+    body{min-height:100vh}
+    /* Toggle tab SOLO con CSS */
+    #tab-login:checked  ~ .tabs #lblLogin  { background:#0f172a; color:#fff; }
+    #tab-signup:checked ~ .tabs #lblSignup { background:#0f172a; color:#fff; }
+    #tab-login:checked  ~ .panes #paneLogin  { display:block; }
+    #tab-login:checked  ~ .panes #paneSignup { display:none;  }
+    #tab-signup:checked ~ .panes #paneLogin  { display:none;  }
+    #tab-signup:checked ~ .panes #paneSignup { display:block; }
+    .tab-btn { @apply py-2 rounded-lg border text-center cursor-pointer; }
+  </style>
 </head>
 <body class="bg-slate-50 text-slate-900 flex items-center justify-center p-4">
   <div class="w-full max-w-md">
@@ -14,111 +24,84 @@
       <h1 class="text-2xl font-bold text-center">GeoChat</h1>
       <p class="text-center text-slate-600 mt-1">Accedi o crea un account</p>
 
-      <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
-        <button id="tabLogin"  type="button" class="py-2 rounded-lg border bg-slate-900 text-white">Accedi</button>
-        <button id="tabSignup" type="button" class="py-2 rounded-lg border">Registrati</button>
+      <!-- Radio nascosti per il toggle CSS -->
+      <input type="radio" name="tab" id="tab-login"  class="hidden" checked>
+      <input type="radio" name="tab" id="tab-signup" class="hidden">
+
+      <!-- Bottoni tab -->
+      <div class="mt-4 grid grid-cols-2 gap-2 text-sm tabs">
+        <label for="tab-login"  id="lblLogin"  class="tab-btn">Accedi</label>
+        <label for="tab-signup" id="lblSignup" class="tab-btn">Registrati</label>
       </div>
 
-      <!-- LOGIN -->
-      <form id="formLogin" class="mt-4 space-y-3">
-        <div>
-          <label class="text-sm">Email</label>
-          <input id="lEmail" type="email" required class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="es. mario@esempio.it" />
-        </div>
-        <div>
-          <label class="text-sm">Password</label>
-          <input id="lPassword" type="password" required minlength="6" class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="••••••" />
-        </div>
-        <button id="btnLogin" type="submit" class="w-full py-2 rounded-lg bg-slate-900 text-white">Accedi</button>
-      </form>
+      <!-- Pannelli -->
+      <div class="panes">
+        <!-- LOGIN -->
+        <form id="paneLogin" class="mt-4 space-y-3">
+          <div>
+            <label class="text-sm">Email</label>
+            <input id="lEmail" type="email" required class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="es. mario@esempio.it" />
+          </div>
+          <div>
+            <label class="text-sm">Password</label>
+            <input id="lPassword" type="password" required minlength="6" class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="••••••" />
+          </div>
+          <button id="btnLogin" type="submit" class="w-full py-2 rounded-lg bg-slate-900 text-white">Accedi</button>
+        </form>
 
-      <!-- SIGNUP -->
-      <form id="formSignup" class="mt-4 space-y-3 hidden">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-sm">Nome</label>
-            <input id="sFirst" required class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="Mario" />
+        <!-- SIGNUP -->
+        <form id="paneSignup" class="mt-4 space-y-3 hidden">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-sm">Nome</label>
+              <input id="sFirst" required class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="Mario" />
+            </div>
+            <div>
+              <label class="text-sm">Cognome</label>
+              <input id="sLast" required class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="Rossi" />
+            </div>
           </div>
           <div>
-            <label class="text-sm">Cognome</label>
-            <input id="sLast" required class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="Rossi" />
+            <label class="text-sm">Email</label>
+            <input id="sEmail" type="email" required class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="mario@esempio.it" />
           </div>
-        </div>
-        <div>
-          <label class="text-sm">Email</label>
-          <input id="sEmail" type="email" required class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="mario@esempio.it" />
-        </div>
-        <div>
-          <label class="text-sm">Password (min 6 caratteri)</label>
-          <input id="sPassword" type="password" required minlength="6" class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="••••••" />
-        </div>
-        <div>
-          <label class="text-sm">Conferma password</label>
-          <input id="sPassword2" type="password" required minlength="6" class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="••••••" />
-        </div>
-        <button id="btnSignup" type="submit" class="w-full py-2 rounded-lg bg-emerald-600 text-white">Crea account</button>
-      </form>
+          <div>
+            <label class="text-sm">Password (min 6 caratteri)</label>
+            <input id="sPassword" type="password" required minlength="6" class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="••••••" />
+          </div>
+          <div>
+            <label class="text-sm">Conferma password</label>
+            <input id="sPassword2" type="password" required minlength="6" class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="••••••" />
+          </div>
+          <button id="btnSignup" type="submit" class="w-full py-2 rounded-lg bg-emerald-600 text-white">Crea account</button>
+        </form>
+      </div>
 
       <p id="msg" class="mt-4 text-sm text-center text-slate-600"></p>
       <p class="mt-2 text-center">
         <a href="/" class="text-sm text-slate-700 underline">Torna alla Home</a>
       </p>
+      <p class="text-center text-xs text-slate-400 mt-2">build: v5</p>
     </div>
   </div>
 
-  <!-- Carico Supabase *defer* in modo non bloccante -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-
+  <!-- Supabase (UMD) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    // 1) AGGANCIO SUBITO IL TOGGLE TAB (indipendente da Supabase)
-    (function initTabs(){
-      const tabLogin  = document.getElementById('tabLogin');
-      const tabSignup = document.getElementById('tabSignup');
-      const formLogin  = document.getElementById('formLogin');
-      const formSignup = document.getElementById('formSignup');
+    (function(){
       const msg = document.getElementById('msg');
-      function setMsg(t){ msg.textContent = t || ""; }
-
-      tabLogin.addEventListener('click', ()=>{
-        tabLogin.classList.add('bg-slate-900','text-white');
-        tabSignup.classList.remove('bg-slate-900','text-white');
-        formLogin.classList.remove('hidden');
-        formSignup.classList.add('hidden');
-        setMsg('');
-      });
-
-      tabSignup.addEventListener('click', ()=>{
-        tabSignup.classList.add('bg-slate-900','text-white');
-        tabLogin.classList.remove('bg-slate-900','text-white');
-        formSignup.classList.remove('hidden');
-        formLogin.classList.add('hidden');
-        setMsg('');
-      });
-    })();
-
-    // 2) INIZIALIZZO SUPABASE SOLO DOPO IL CARICAMENTO COMPLETO
-    window.addEventListener('load', () => {
-      const msg = document.getElementById('msg');
-      const formLogin  = document.getElementById('formLogin');
-      const formSignup = document.getElementById('formSignup');
-
-      function setMsg(t){ msg.textContent = t || ""; }
-      function disableForms(){
-        [...document.querySelectorAll('button, input')].forEach(el => el.disabled = true);
-      }
-
-      if (!window.supabase || !window.supabase.createClient){
-        setMsg('Errore: libreria Supabase non caricata. Riprova (Ctrl/Cmd + Shift + R).');
-        disableForms();
-        return;
-      }
+      const setMsg = (t) => msg.textContent = t || "";
 
       const SUPABASE_URL  = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
       const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
+      if (!window.supabase || !window.supabase.createClient) {
+        setMsg('Errore: libreria Supabase non caricata. Ricarica la pagina (Ctrl+F5).');
+        return;
+      }
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
       // LOGIN
-      formLogin.addEventListener('submit', async (e) => {
+      document.getElementById('paneLogin').addEventListener('submit', async (e)=>{
         e.preventDefault();
         setMsg('Accesso in corso…');
         const email = document.getElementById('lEmail').value.trim();
@@ -126,12 +109,12 @@
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) { setMsg(error.message); return; }
         await ensureProfileDisplayName();
-        setMsg('Accesso riuscito! Ti reindirizzo…');
+        setMsg('Accesso riuscito! Reindirizzo…');
         setTimeout(()=> location.href='/', 600);
       });
 
       // SIGNUP
-      formSignup.addEventListener('submit', async (e) => {
+      document.getElementById('paneSignup').addEventListener('submit', async (e)=>{
         e.preventDefault();
         setMsg('');
         const first = document.getElementById('sFirst').value.trim();
@@ -151,10 +134,10 @@
         if (error) { setMsg(error.message); return; }
 
         setMsg('Registrazione effettuata! Controlla la tua email per confermare e poi accedi.');
-        await ensureProfileDisplayName(first, last); // nel caso non serva conferma
+        await ensureProfileDisplayName(first, last); // se non serve conferma
       });
 
-      // Crea/aggiorna profilo (display_name = "Nome Cognome")
+      // Crea/aggiorna profilo con display_name
       async function ensureProfileDisplayName(first, last){
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -167,7 +150,7 @@
           display_name: display
         });
       }
-    });
+    })();
   </script>
 </body>
 </html>
