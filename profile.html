@@ -3,37 +3,48 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GeoChat • Profilo (privato)</title>
+  <title>GeoChat • Profilo</title>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
-    :root{--bg:#0b0b0c;--card:#141417;--fg:#f6f6f7;--muted:#8a8a94;--brand:#ff8a00;--brand2:#ffb347;--border:#232328;--danger:#ff6767}
-    *{box-sizing:border-box} body{margin:0;background:#0b0b0c;color:var(--fg);font-family:system-ui,Segoe UI,Inter,Roboto,Arial}
+    :root{--bg:#0b0b0c;--card:#141417;--fg:#f6f6f7;--muted:#a2a2ab;--brand:#ff8a00;--brand2:#ffb347;--border:#232328;--danger:#ff6b6b}
+    *{box-sizing:border-box} body{margin:0;background:#0b0b0c;color:var(--fg);font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
     header{position:sticky;top:0;background:#0b0b0cdd;backdrop-filter:blur(6px);border-bottom:1px solid var(--border)}
     .wrap{max-width:960px;margin:0 auto;padding:16px}
     .nav{display:flex;align-items:center;justify-content:space-between}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
     .btn{padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:#16161a;color:var(--fg);cursor:pointer}
     .btn.primary{background:linear-gradient(90deg,var(--brand),var(--brand2));color:#111;font-weight:700;border:none}
-    .btn.danger{background:#1c1113;border-color:#472126;color:#ff9c9c}
+    .btn.ghost{background:transparent}
+    .btn.danger{background:#1a1112;border-color:#442325;color:#ffb3b3}
     .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px;margin-top:16px}
     .center{text-align:center}
-    .avatar{width:140px;height:140px;border-radius:999px;object-fit:cover;border:2px solid var(--border);background:#0f0f12;display:block;margin:0 auto 10px}
-    h1{margin:8px 0 4px}
+    .avatar{width:140px;height:140px;border-radius:999px;object-fit:cover;border:2px solid var(--border);background:#0f0f12;display:block;margin:0 auto}
     .muted{color:var(--muted)}
     .badge{font-size:12px;padding:6px 10px;border-radius:999px;background:#101014;border:1px solid var(--border)}
-    .error{border:1px solid #402225;background:#1a1011;color:#f9b9b9;padding:12px;border-radius:12px;margin-top:10px;display:none;white-space:pre-wrap}
+    .error{border:1px solid #402225;background:#1b0f11;color:#ffc6c6;padding:12px;border-radius:12px;margin-top:10px;display:none;white-space:pre-wrap}
     .toast{position:fixed;right:18px;bottom:18px;background:#141417;border:1px solid var(--border);padding:12px 14px;border-radius:12px;display:none}
-    /* Galleria */
-    .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+    /* layout header profilo */
+    .profile-header{display:grid;grid-template-columns:140px 1fr;gap:18px;align-items:center}
+    @media(max-width:600px){.profile-header{grid-template-columns:1fr;justify-items:center;text-align:center}}
+    .h1{font-size:26px;font-weight:800;margin:0}
+    .sub{margin:6px 0 0}
+    /* pannello edit */
+    .edit{margin-top:16px;border-top:1px dashed var(--border);padding-top:16px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media(max-width:720px){.grid{grid-template-columns:1fr}}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .field input,.field textarea{background:#0f0f12;border:1px solid var(--border);color:var(--fg);border-radius:12px;padding:12px}
+    .hint{font-size:12px;color:var(--muted)}
+    /* gallery */
+    .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
     @media(max-width:640px){.gallery{grid-template-columns:repeat(2,1fr)}}
-    .tile{position:relative;overflow:hidden;border-radius:14px;border:1px solid var(--border);background:#0f0f12}
+    .tile{position:relative;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#0f0f12}
     .tile img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
-    .tile .del{position:absolute;top:6px;right:6px;font-size:12px;border-radius:10px;padding:6px 8px}
-    .caption{font-size:12px;color:var(--muted);padding:6px 2px}
-    /* Floating + */
-    .fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;font-size:28px;font-weight:bold;border:none;background:linear-gradient(90deg,var(--brand),var(--brand2));color:#111;cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.4)}
-    /* Modale upload */
-    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+    .tile .del{position:absolute;top:6px;right:6px;font-size:12px;border-radius:999px;padding:6px 8px}
+    /* fab */
+    .fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;font-size:28px;font-weight:900;border:none;background:linear-gradient(90deg,var(--brand),var(--brand2));color:#111;cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.4)}
+    /* modale upload */
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
     .modal{width:min(720px,100%);background:#151519;border:1px solid var(--border);border-radius:18px;padding:16px}
     .list{display:flex;flex-direction:column;gap:12px;max-height:50vh;overflow:auto;margin:12px 0}
     .item{display:grid;grid-template-columns:72px 1fr;gap:12px;align-items:center;background:#101015;border:1px solid var(--border);padding:8px;border-radius:12px}
@@ -62,26 +73,31 @@
     </div>
   </header>
 
-  <main class="wrap" id="app">
-    <!-- HEADER PROFILO -->
-    <section class="card center">
-      <img id="avatarImg" class="avatar" alt="avatar"/>
-      <h1 id="display_name_txt">—</h1>
-      <p id="bio_txt" class="muted"></p>
-      <p id="extra_txt" class="muted"></p>
-      <div class="row" style="justify-content:center;margin-top:8px">
-        <button id="editToggle" class="btn">Modifica profilo</button>
-        <a id="publicLink" class="btn primary" href="#" target="_blank">Vedi profilo pubblico</a>
+  <main class="wrap">
+    <!-- Header profilo -->
+    <section class="card">
+      <div class="profile-header">
+        <img id="avatarImg" class="avatar" alt="avatar"/>
+        <div>
+          <h1 class="h1" id="display_name_txt">—</h1>
+          <p class="muted sub" id="bio_txt"></p>
+          <p class="muted sub" id="extra_txt"></p>
+          <div class="row" style="margin-top:10px">
+            <button id="editToggle" class="btn">Modifica profilo</button>
+            <a id="publicLink" class="btn primary" href="#" target="_blank">Vedi profilo pubblico</a>
+          </div>
+        </div>
       </div>
 
-      <!-- PANNELLO MODIFICA PROFILO -->
-      <div id="editPanel" class="edit-panel" style="display:none;margin-top:12px">
-        <div class="row" style="justify-content:center;gap:16px;margin:12px 0">
+      <!-- Edit panel -->
+      <div id="editPanel" class="edit" style="display:none">
+        <div class="row" style="align-items:center;gap:12px;margin-bottom:10px">
           <input type="file" id="avatarFile" accept="image/*"/>
           <button class="btn" id="uploadAvatarBtn" type="button">Carica avatar</button>
           <button class="btn danger" id="removeAvatarBtn" type="button">Rimuovi avatar</button>
+          <span class="hint">Consigliato: quadrata 512×512 — salvata su <code>avatars/&lt;uid&gt;/</code></span>
         </div>
-        <form id="profileForm" style="max-width:680px;margin:0 auto">
+        <form id="profileForm" class="grid">
           <div class="field">
             <label for="display_name">Nome visualizzato</label>
             <input id="display_name" placeholder="Es. Carmine"/>
@@ -94,31 +110,32 @@
             <label for="age">Età</label>
             <input id="age" type="number" min="0" max="120" placeholder="Es. 31"/>
           </div>
-          <div class="field">
+          <div class="field" style="grid-column:1/-1">
             <label for="bio">Bio</label>
-            <textarea id="bio" rows="4" placeholder="Scrivi qualcosa su di te…"></textarea>
+            <textarea id="bio" rows="3" placeholder="Scrivi qualcosa su di te…"></textarea>
           </div>
-          <div class="row center" style="justify-content:center;margin-top:8px">
-            <button class="btn primary" type="submit">Salva modifiche</button>
+          <div class="row" style="grid-column:1/-1;justify-content:flex-end">
             <button class="btn" type="button" id="reloadBtn">Ricarica</button>
+            <button class="btn primary" type="submit">Salva modifiche</button>
           </div>
         </form>
       </div>
     </section>
 
-    <!-- BACHECA FOTO -->
+    <!-- Bacheca -->
     <section class="card">
       <div class="row" style="justify-content:space-between;align-items:center">
         <h3 style="margin:0">Bacheca</h3>
-        <span class="muted" style="font-size:12px">Le foto sono pubbliche sul tuo profilo</span>
+        <span class="muted" style="font-size:12px">Le foto sono pubbliche</span>
       </div>
-      <div id="gallery" class="gallery"></div>
+      <div id="gallery" class="gallery" style="margin-top:12px"></div>
       <p id="empty" class="muted" style="display:none">Ancora nessuna foto.</p>
     </section>
   </main>
 
-  <!-- Floating + -->
+  <!-- FAB upload -->
   <button id="fabAdd" class="fab" title="Carica foto">+</button>
+
   <!-- Modale upload -->
   <div id="overlay" class="overlay">
     <div class="modal">
@@ -133,7 +150,8 @@
   </div>
 
   <input type="file" id="photoPicker" accept="image/*" multiple style="display:none"/>
-  <div class="toast" id="toast">OK</div>
+
+  <div id="toast" class="toast">OK</div>
   <div id="errBox" class="error"></div>
 
   <script>
@@ -148,7 +166,7 @@
     const toast = (m,ms=1500)=>{const t=qs('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',ms);};
 
     let user = null;
-    let chosenFiles = []; // {file, captionInput, progressEl}
+    let chosenFiles = []; // [{file, captionInput, progressEl}]
 
     (async () => {
       const { data: { session }, error: sErr } = await supabase.auth.getSession();
@@ -164,7 +182,7 @@
       qs('#logoutBtn').addEventListener('click', async () => { await supabase.auth.signOut(); location.href = 'auth.html'; });
       qs('#editToggle').addEventListener('click', () => {
         const p = qs('#editPanel');
-        p.style.display = (p.style.display === 'block') ? 'none' : 'block';
+        p.style.display = p.style.display === 'block' ? 'none' : 'block';
       });
       qs('#reloadBtn').addEventListener('click', loadProfile);
       qs('#profileForm').addEventListener('submit', onSave);
@@ -176,6 +194,12 @@
       qs('#photoPicker').addEventListener('change', openUploadModal);
       qs('#cancelUpload').addEventListener('click', closeUploadModal);
       qs('#startUpload').addEventListener('click', startUpload);
+
+      // Preview avatar immediata
+      qs('#avatarFile').addEventListener('change', (e)=>{
+        const f = e.target.files?.[0]; if(!f) return;
+        qs('#avatarImg').src = URL.createObjectURL(f);
+      });
 
       await ensureProfileRow();
       await loadProfile();
@@ -200,20 +224,22 @@
         .maybeSingle();
       if (error) { showErr("Errore caricamento profilo: "+error.message); return; }
 
-      const display_name = data?.display_name || "Utente";
+      const dn = data?.display_name || "Utente";
       const bio = data?.bio || "";
-      const extras = [];
-      if (data?.age) extras.push(`Età: ${data.age}`);
-      if (data?.location) extras.push(`Località: ${data.location}`);
+      const parts = [];
+      if (data?.age) parts.push(`Età: ${data.age}`);
+      if (data?.location) parts.push(`Località: ${data.location}`);
 
-      qs('#display_name_txt').textContent = display_name;
+      qs('#display_name_txt').textContent = dn;
       qs('#bio_txt').textContent = bio;
-      qs('#extra_txt').textContent = extras.join(' · ') || "";
+      qs('#extra_txt').textContent = parts.join(' · ') || "";
 
-      if (data?.avatar_url) qs('#avatarImg').src = data.avatar_url;
-      else qs('#avatarImg').src = 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140"><rect width="140" height="140" fill="#0f0f12"/><circle cx="70" cy="56" r="30" fill="#1e1e24"/><rect x="24" y="92" width="92" height="30" rx="15" fill="#1e1e24"/></svg>`);
+      const avatarUrl = data?.avatar_url
+        ? data.avatar_url + `?t=${Date.now()}`
+        : 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140"><rect width="140" height="140" fill="#0f0f12"/><circle cx="70" cy="56" r="30" fill="#1e1e24"/><rect x="24" y="92" width="92" height="30" rx="15" fill="#1e1e24"/></svg>`);
+      qs('#avatarImg').src = avatarUrl;
 
-      // Precompila form
+      // precompila form
       qs('#display_name').value = data?.display_name ?? '';
       qs('#location').value     = data?.location ?? '';
       qs('#age').value          = data?.age ?? '';
@@ -240,13 +266,18 @@
       if(!f){ toast('Seleziona un file'); return; }
       const safe = f.name.replace(/\s+/g,'_');
       const path = `${user.id}/${Date.now()}_${safe}`;
+
       const { error: upErr } = await supabase.storage.from('avatars').upload(path, f, { upsert:false });
       if (upErr){ showErr("Upload avatar: "+upErr.message); return; }
+
       const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
       const url = pub?.publicUrl;
+
       const { error: updErr } = await supabase.from('profiles').update({ avatar_url:url }).eq('id', user.id);
       if (updErr){ showErr("Salvataggio URL avatar: "+updErr.message); return; }
-      qs('#avatarImg').src = url; qs('#avatarFile').value='';
+
+      qs('#avatarImg').src = url + `?t=${Date.now()}`; // cache-buster
+      qs('#avatarFile').value = '';
       toast('Avatar aggiornato');
     }
 
@@ -271,95 +302,4 @@
       if (!data || !data.length){ empty.style.display='block'; return; }
 
       for (const ph of data){
-        const tile = document.createElement('div'); tile.className='tile';
-        tile.innerHTML = `
-          <img src="${ph.image_path}" alt="photo"/>
-          <button class="btn danger del" data-id="${ph.id}" style="position:absolute;top:6px;right:6px">Elimina</button>
-          ${ph.caption ? `<div class="caption">${ph.caption}</div>` : ``}
-        `;
-        tile.querySelector('.del').addEventListener('click', ()=> deletePhoto(ph.id, ph.image_path, tile));
-        grid.appendChild(tile);
-      }
-    }
-
-    // ======= MODALE UPLOAD =======
-    function openUploadModal(e){
-      chosenFiles = [];
-      const files = e.target.files;
-      if (!files || !files.length) return;
-
-      const list = qs('#uploadList'); list.innerHTML = '';
-      for (const f of files){
-        const url = URL.createObjectURL(f);
-        const row = document.createElement('div'); row.className='item';
-        row.innerHTML = `
-          <img src="${url}" alt="preview"/>
-          <div>
-            <input placeholder="Didascalia (facoltativa)"/>
-            <div class="bar" style="margin-top:8px"><span></span></div>
-          </div>`;
-        list.appendChild(row);
-        chosenFiles.push({
-          file: f,
-          captionInput: row.querySelector('input'),
-          progressEl: row.querySelector('.bar span')
-        });
-      }
-      qs('#overlay').style.display = 'flex';
-    }
-    function closeUploadModal(){
-      qs('#overlay').style.display = 'none';
-      qs('#photoPicker').value = '';
-      chosenFiles = [];
-    }
-
-    async function startUpload(){
-      clearErr();
-      if (!chosenFiles.length) { closeUploadModal(); return; }
-      // Carica una alla volta per avere progressi chiari
-      for (const item of chosenFiles){
-        // Finta progress bar “in attesa” (Supabase non espone progresso nativo sul fetch)
-        item.progressEl.style.width = '25%';
-
-        const f = item.file;
-        const safe = f.name.replace(/\s+/g,'_');
-        const path = `${user.id}/${Date.now()}_${safe}`;
-
-        // Upload su Storage
-        const { error: upErr } = await supabase.storage.from('user-media').upload(path, f, { upsert:false });
-        if (upErr){ item.progressEl.style.width='0%'; showErr("Upload foto: "+upErr.message); return; }
-        item.progressEl.style.width = '60%';
-
-        // URL pubblico
-        const { data: pub } = supabase.storage.from('user-media').getPublicUrl(path);
-        const publicUrl = pub?.publicUrl;
-
-        // Salva record nel DB con didascalia
-        const caption = (item.captionInput.value || '').trim() || null;
-        const { error: dbErr } = await supabase.from('user_photos').insert([{ user_id: user.id, image_path: publicUrl, caption }]);
-        if (dbErr){ item.progressEl.style.width='0%'; showErr("Salvataggio DB foto: "+dbErr.message); return; }
-
-        item.progressEl.style.width = '100%';
-      }
-      toast('Foto pubblicate');
-      closeUploadModal();
-      await loadGallery();
-    }
-
-    async function deletePhoto(photoId, imageUrl, tileEl){
-      try{
-        const url = new URL(imageUrl);
-        const parts = url.pathname.split('/');
-        const idx = parts.indexOf('user-media');
-        const relPath = parts.slice(idx+1).join('/'); // <uid>/file.jpg
-        const { error: del1 } = await supabase.storage.from('user-media').remove([ relPath ]);
-        if (del1) console.warn('Delete storage:', del1);
-      }catch(e){ console.warn('Parse URL storage fallita (ignoro)'); }
-
-      const { error: del2 } = await supabase.from('user_photos').delete().eq('id', photoId);
-      if (del2){ showErr("Eliminazione record: "+del2.message); return; }
-      tileEl.remove(); toast('Foto eliminata');
-    }
-  </script>
-</body>
-</html>
+        cons
