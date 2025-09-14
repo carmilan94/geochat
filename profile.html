@@ -50,8 +50,8 @@
     .item input{width:100%;background:#0e0e12;border:1px solid var(--border);border-radius:10px;padding:10px;color:#fff}
     .bar{height:6px;background:#0e0e12;border:1px solid var(--border);border-radius:999px;overflow:hidden}
     .bar span{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--brand),var(--brand2))}
-
-    /* === MOBILE NAV === */
+    /* === MOBILE NAV (hamburger + drawer) === */
+    .nav-right{display:flex}
     .hamburger{display:none;gap:5px;flex-direction:column;align-items:center;justify-content:center;
       padding:10px;border-radius:12px;border:1px solid var(--border);background:#16161a;cursor:pointer}
     .hamburger span{width:22px;height:2px;background:var(--fg);display:block}
@@ -215,14 +215,13 @@
       user = session.user;
 
       qs('#meEmail').textContent = user.email;
-      qs'#uidBadge'?.textContent; // ensure present
       qs('#uidBadge').textContent = 'uid: ' + user.id;
       qs('#publicLink').href = `user.html?uid=${user.id}`;
 
       // Listeners header
       qs('#logoutBtn').addEventListener('click', async () => { await supabase.auth.signOut(); location.href = 'auth.html'; });
 
-      // Toggle edit
+      // Toggle edit & form
       qs('#editToggle').addEventListener('click', toggleEdit);
       qs('#reloadBtn').addEventListener('click', loadProfile);
       qs('#saveBtn').addEventListener('click', onSave);
@@ -310,17 +309,20 @@
         : 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140"><rect width="140" height="140" fill="#0f0f12"/><circle cx="70" cy="56" r="30" fill="#1e1e24"/><rect x="24" y="92" width="92" height="30" rx="15" fill="#1e1e24"/></svg>`);
       qs('#avatarImg').src = avatarUrl;
 
+      // precompila form
       qs('#display_name').value = data?.display_name ?? '';
       qs('#location').value     = data?.location ?? '';
       qs('#age').value          = data?.age ?? '';
       qs('#bio').value          = data?.bio ?? '';
     }
 
+    // === SALVA (avatar + dati) e CHIUDE pannello ===
     async function onSave(){
       clearErr();
       const saveBtn = qs('#saveBtn'); saveBtn.disabled = true;
       const oldTxt = saveBtn.textContent; saveBtn.textContent = 'Salvo…';
       try {
+        // 1) Upload avatar se presente
         let avatarUrlToSave = null;
         const file = qs('#avatarFile').files?.[0];
         if (file) {
@@ -331,6 +333,8 @@
           const pub = supabase.storage.from('avatars').getPublicUrl(path);
           avatarUrlToSave = pub.data?.publicUrl || null;
         }
+
+        // 2) Upsert profilo
         const payload = {
           id: user.id,
           display_name: qs('#display_name').value.trim() || null,
@@ -343,13 +347,14 @@
         const { error } = await supabase.from('profiles').upsert(payload, { onConflict:'id' });
         if (error) throw error;
 
+        // 3) UI update
         if (avatarUrlToSave) {
           qs('#avatarImg').src = avatarUrlToSave + `?t=${Date.now()}`;
           qs('#avatarFile').value = '';
         }
-        toggleEdit();
+        toggleEdit();               // chiude pannello
         toast('Profilo aggiornato');
-        await loadProfile();
+        await loadProfile();        // rilegge dal DB
       } catch (err) {
         showErr("Errore salvataggio: " + (err?.message || err));
       } finally {
@@ -365,9 +370,11 @@
       await loadProfile(); toast('Avatar rimosso');
     }
 
+    // ======= GALLERIA =======
     async function loadGallery(){
       const grid = qs('#gallery'); const empty = qs('#empty');
-      grid.innerHTML=''; empty.style.display='none';
+      grid.innerHTML = ''; empty.style.display='none';
+
       const { data, error } = await supabase
         .from('user_photos')
         .select('id, image_path, caption, created_at')
@@ -375,6 +382,7 @@
         .order('created_at', { ascending:false });
       if (error){ showErr("Lettura galleria: "+error.message); return; }
       if (!data || !data.length){ empty.style.display='block'; return; }
+
       for (const ph of data){
         const tile = document.createElement('div'); tile.className='tile';
         tile.innerHTML = `
@@ -387,11 +395,13 @@
       }
     }
 
+    // ======= MODALE UPLOAD (caption + progress) =======
     function openUploadModal(e){
       chosenFiles = [];
       const files = e.target.files;
       if (!files || !files.length) return;
-      const list = qs('#uploadList'); list.innerHTML='';
+
+      const list = qs('#uploadList'); list.innerHTML = '';
       for (const f of files){
         const url = URL.createObjectURL(f);
         const row = document.createElement('div'); row.className='item';
@@ -402,46 +412,57 @@
             <div class="bar" style="margin-top:8px"><span></span></div>
           </div>`;
         list.appendChild(row);
-        chosenFiles.push({ file:f, captionInput:row.querySelector('input'), progressEl:row.querySelector('.bar span') });
+        chosenFiles.push({
+          file: f,
+          captionInput: row.querySelector('input'),
+          progressEl: row.querySelector('.bar span')
+        });
       }
-      qs('#overlay').style.display='flex';
+      qs('#overlay').style.display = 'flex';
     }
     function closeUploadModal(){
-      qs('#overlay').style.display='none';
-      qs('#photoPicker').value='';
+      qs('#overlay').style.display = 'none';
+      qs('#photoPicker').value = '';
       chosenFiles = [];
     }
+
     async function startUpload(){
       clearErr();
       if (!chosenFiles.length) { closeUploadModal(); return; }
       for (const item of chosenFiles){
-        item.progressEl.style.width='25%';
-        const f=item.file;
-        const safe=f.name.replace(/\s+/g,'_');
-        const path=`${user.id}/${Date.now()}_${safe}`;
+        item.progressEl.style.width = '25%';
+        const f = item.file;
+        const safe = f.name.replace(/\s+/g,'_');
+        const path = `${user.id}/${Date.now()}_${safe}`;
+
         const { error: upErr } = await supabase.storage.from('user-media').upload(path, f, { upsert:false });
         if (upErr){ item.progressEl.style.width='0%'; showErr("Upload foto: "+upErr.message); return; }
-        item.progressEl.style.width='60%';
+
+        item.progressEl.style.width = '60%';
         const { data: pub } = supabase.storage.from('user-media').getPublicUrl(path);
         const publicUrl = pub?.publicUrl;
+
         const caption = (item.captionInput.value || '').trim() || null;
-        const { error: dbErr } = await supabase.from('user_photos').insert([{ user_id:user.id, image_path:publicUrl, caption }]);
+        const { error: dbErr } = await supabase.from('user_photos').insert([{ user_id: user.id, image_path: publicUrl, caption }]);
         if (dbErr){ item.progressEl.style.width='0%'; showErr("Salvataggio DB foto: "+dbErr.message); return; }
-        item.progressEl.style.width='100%';
+
+        item.progressEl.style.width = '100%';
       }
       toast('Foto pubblicate');
       closeUploadModal();
       await loadGallery();
     }
+
     async function deletePhoto(photoId, imageUrl, tileEl){
       try{
         const u = new URL(imageUrl);
-        const parts=u.pathname.split('/');
-        const idx=parts.indexOf('user-media');
-        const rel=parts.slice(idx+1).join('/');
+        const parts = u.pathname.split('/');
+        const idx = parts.indexOf('user-media');
+        const rel = parts.slice(idx+1).join('/'); // <uid>/file.jpg
         const { error: del1 } = await supabase.storage.from('user-media').remove([ rel ]);
         if (del1) console.warn('Delete storage:', del1);
       }catch(e){ console.warn('Parse URL storage fallita'); }
+
       const { error: del2 } = await supabase.from('user_photos').delete().eq('id', photoId);
       if (del2){ showErr("Eliminazione record: "+del2.message); return; }
       tileEl.remove(); toast('Foto eliminata');
