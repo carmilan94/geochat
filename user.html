@@ -8,12 +8,16 @@
   <style>
     :root{--bg:#0b0b0c;--card:#141417;--fg:#f6f6f7;--muted:#8a8a94;--border:#232328}
     *{box-sizing:border-box} body{margin:0;background:#0b0b0c;color:var(--fg);font-family:system-ui,Segoe UI,Inter,Roboto,Arial}
-    .wrap{max-width:680px;margin:0 auto;padding:20px}
+    .wrap{max-width:720px;margin:0 auto;padding:20px}
     .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin-top:16px}
     h1{margin:12px 0 8px}
     .muted{color:var(--muted)}
     .avatar{width:160px;height:160px;border-radius:999px;object-fit:cover;border:2px solid var(--border);background:#0f0f12;display:block;margin:0 auto}
     .center{text-align:center}
+    .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+    @media(max-width:640px){.gallery{grid-template-columns:repeat(2,1fr)}}
+    .tile{overflow:hidden;border-radius:12px;border:1px solid var(--border);background:#0f0f12}
+    .tile img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
   </style>
 </head>
 <body>
@@ -24,48 +28,6 @@
       <p id="bio" class="muted"></p>
       <p id="extra" class="muted"></p>
     </div>
-  </main>
 
-  <script>
-    // === Supabase init ===
-    const SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // === Prendi uid dall'URL ===
-    const params = new URLSearchParams(window.location.search);
-    const uid = params.get("uid");
-
-    if (!uid) {
-      document.body.innerHTML = "<div class='wrap'><p style='color:red'>Errore: nessun UID specificato.</p></div>";
-    } else {
-      loadProfile(uid);
-    }
-
-    async function loadProfile(uid) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('display_name, bio, age, location, avatar_url')
-        .eq('id', uid)
-        .maybeSingle();
-
-      if (error) {
-        document.body.innerHTML = "<div class='wrap'><p style='color:red'>Errore caricamento profilo</p></div>";
-        return;
-      }
-      if (!data) {
-        document.body.innerHTML = "<div class='wrap'><p style='color:red'>Profilo non trovato</p></div>";
-        return;
-      }
-
-      document.getElementById('display_name').textContent = data.display_name || "Utente senza nome";
-      document.getElementById('bio').textContent = data.bio || "";
-      document.getElementById('extra').textContent = 
-        (data.age ? `Età: ${data.age}` : "") + 
-        (data.location ? ` · Località: ${data.location}` : "");
-      document.getElementById('avatar').src = data.avatar_url || 
-        'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" fill="#0f0f12"/><circle cx="80" cy="64" r="34" fill="#1e1e24"/><rect x="28" y="106" width="104" height="34" rx="17" fill="#1e1e24"/></svg>`);
-    }
-  </script>
-</body>
-</html>
+    <div class="card">
+      <h3
