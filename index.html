@@ -36,7 +36,7 @@
       <span id="locState" class="opacity-70 text-sm">Posizione non disponibile</span>
     </div>
 
-    <!-- NEW: barra di ricerca città -->
+    <!-- Barra di ricerca città -->
     <div class="mt-3 flex flex-wrap items-center gap-3">
       <input id="cityInput"
              class="chip px-3 py-2 rounded-lg bg-transparent outline-none"
@@ -45,7 +45,6 @@
       <button id="btnClear" class="chip px-3 py-2 rounded-lg">Rimuovi filtro</button>
       <span id="filterState" class="opacity-70 text-sm"></span>
     </div>
-    <!-- /NEW -->
   </div>
 
   <div id="list" class="grid gap-4"></div>
@@ -56,7 +55,7 @@
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  // header auth button
+  // auth link
   (async ()=>{
     const { data:{session} } = await sb.auth.getSession();
     const link = document.getElementById('authLink');
@@ -69,7 +68,6 @@
     }
   })();
 
-  // helper: se non loggato → vai a login con next
   async function requireAuthOrRedirect(nextUrl){
     const { data:{session} } = await sb.auth.getSession();
     if (!session){
@@ -79,40 +77,61 @@
     return true;
   }
 
-  // stato posizione + filtro città
   let myPos=null;
-  let cityFilter=''; // NEW
+  let cityFilter='';
 
   loadRooms();
 
-  // carica stanze (con eventuale filtro per città)
+  // === Mappa sigle provincia ⇄ nome (bastano questi per ora; estendibile) ===
+  const PROV = {
+    'na':'napoli','mi':'milano','rm':'roma','to':'torino','fi':'firenze','ge':'genova','ve':'venezia',
+    'ba':'bari','bo':'bologna','pa':'palermo','ct':'catania','sa':'salerno','ce':'caserta','bn':'benevento','av':'avellino'
+  };
+
+  const normalize = s => (s||'').toString().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // senza accenti
+    .replace(/[()]/g,' '); // ignora parentesi
+
+  function buildAliases(term){
+    const t = normalize(term).trim();
+    const aliases = new Set([t]);
+    // se l'utente scrive "napoli" → aggiungi "na"; se scrive "na" → aggiungi "napoli"
+    for (const [code,name] of Object.entries(PROV)){
+      if (t === name) aliases.add(code);       // Napoli -> na
+      if (t === code) aliases.add(name);       // na -> napoli
+    }
+    return [...aliases];
+  }
+
+  function matchesCityOrProvince(room, term){
+    const hay = normalize((room.address||'') + ' ' + (room.city||''));
+    const aliases = buildAliases(term);
+    return aliases.some(a => hay.includes(a));
+  }
+
+  // carica stanze (con filtro città lato DB quando possibile + controllo smart client-side)
   async function loadRooms(){
     const container = document.getElementById('list');
     container.innerHTML = '';
 
     try{
-      // base query
       let query = sb.from('rooms').select('*').order('created_at',{ascending:false}).limit(100);
-
-      // NEW: filtro server-side per city OR address (se la colonna esiste)
       if (cityFilter){
-        // tenta filtro lato DB; se fallisce faremo filtro client-side nel catch
+        // tenta filtro sul DB
         query = query.or(`city.ilike.%${cityFilter}%,address.ilike.%${cityFilter}%`);
       }
-
       let { data, error } = await query;
 
-      // se l'or fallisce (es. colonna mancante), fai fallback client-side
-      if (error && cityFilter){
-        // ricarica senza filtro e poi filtra qui
-        const resp = await sb.from('rooms').select('*').order('created_at',{ascending:false}).limit(100);
-        if (resp.error) throw resp.error;
-        data = (resp.data||[]).filter(r=>{
-          const city = (r.city||'') + ' ' + (r.address||'');
-          return city.toLowerCase().includes(cityFilter.toLowerCase());
-        });
-      } else if (error) {
-        throw error;
+      // se errore con or (colonne mancanti) ricarico e filtro client-side
+      if (error){
+        const r = await sb.from('rooms').select('*').order('created_at',{ascending:false}).limit(100);
+        if (r.error) throw r.error;
+        data = r.data||[];
+      }
+
+      // filtro client-side intelligente per gestire sigle tipo (NA)
+      if (cityFilter){
+        data = (data||[]).filter(r => matchesCityOrProvince(r, cityFilter));
       }
 
       (data||[]).forEach(r=>{
@@ -139,7 +158,6 @@
         container.appendChild(card);
       });
 
-      // NEW: stato filtro
       document.getElementById('filterState').textContent =
         cityFilter ? `Filtro città: "${cityFilter}"` : '';
     } catch(e){
@@ -148,7 +166,7 @@
     }
   }
 
-  // bottone posizione
+  // posizione
   document.getElementById('btnLocate').onclick = ()=>{
     navigator.geolocation.getCurrentPosition(pos=>{
       myPos = { lat:pos.coords.latitude, lng:pos.coords.longitude };
@@ -159,10 +177,9 @@
     }, { enableHighAccuracy:true, maximumAge:0, timeout:10000 });
   };
 
-  // NEW: eventi barra di ricerca città
+  // barra ricerca città
   document.getElementById('btnFilter').onclick = ()=>{
-    const v = document.getElementById('cityInput').value.trim();
-    cityFilter = v;
+    cityFilter = document.getElementById('cityInput').value.trim();
     loadRooms();
   };
   document.getElementById('btnClear').onclick = ()=>{
@@ -177,26 +194,8 @@
       loadRooms();
     }
   });
-  // /NEW
 
-  // click delegato sui pulsanti
-  document.addEventListener('click', async (e)=>{
-    const mapsBtn = e.target.closest('[data-action="maps"]');
-    if (mapsBtn){
-      const url = mapsBtn.getAttribute('data-url');
-      if (!await requireAuthOrRedirect(url)) return;
-      location.href = url;
-      return;
-    }
-    const joinBtn = e.target.closest('[data-action="join"]');
-    if (joinBtn){
-      const room = joinBtn.getAttribute('data-room');
-      const next = `join.html?room=${encodeURIComponent(room)}`;
-      if (!await requireAuthOrRedirect(next)) return;
-      location.href = next;
-    }
-  });
-
+  // helpers
   function escapeHtml(s){return (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
   function haversine(lat1,lon1,lat2,lon2){
     const R=6371, toRad=d=>d*Math.PI/180;
