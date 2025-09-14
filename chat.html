@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GeoChat • Chat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233;}
+    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea;}
+    .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
+    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
+    #log{height:58vh;overflow:auto}
+  </style>
+  <script async
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=geometry&callback=()=>{}">
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<header class="w-full py-4 px-5 flex items-center justify-between">
+  <div class="flex items-center gap-2">
+    <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-bold text-black">GC</div>
+    <div class="font-extrabold text-xl" id="roomTitle">GeoChat</div>
+  </div>
+  <nav class="flex items-center gap-3 text-sm">
+    <a href="index.html" class="chip px-3 py-1.5 rounded-lg">Home</a>
+    <a id="authLink" href="auth.html" class="chip px-3 py-1.5 rounded-lg">Entra</a>
+  </nav>
+</header>
+
+<main class="max-w-3xl mx-auto px-4 pb-24">
+  <div id="geoWarn" class="glass rounded-xl p-3 mb-3 text-sm hidden"></div>
+
+  <div id="log" class="glass rounded-xl p-4"></div>
+
+  <form id="formMsg" class="mt-3 flex gap-2">
+    <input id="msg" class="flex-1 chip rounded-lg px-3 py-2" placeholder="Scrivi un messaggio…" />
+    <button class="btn-main rounded-lg px-4">Invia</button>
+  </form>
+</main>
+
+<script>
+  const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  const params = new URLSearchParams(location.search);
+  const roomId = params.get('room');
+  if (!roomId){ location.replace('index.html'); }
+
+  let room=null, canSend=true;
+
+  (async ()=>{
+    // auth link
+    const l = document.getElementById('authLink');
+    const { data:{session} } = await sb.auth.getSession();
+    if (session){ l.textContent='Esci'; l.onclick=async(e)=>{e.preventDefault(); await sb.auth.signOut(); location.href='index.html'} }
+
+    // room
+    const { data, error } = await sb.from('rooms').select('*').eq('id',roomId).single();
+    if (error || !data){ alert('Stanza non trovata'); location.replace('index.html'); return; }
+    room = data;
+    document.getElementById('roomTitle').textContent = room.name || 'Chat';
+
+    // posizione => se fuori perimetro, disabilito invio (UX)
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const me = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+      const path = (room.polygon?.coordinates?.[0]||[]).map(([lng,lat])=>({lat,lng}));
+      const poly = new google.maps.Polygon({paths:path});
+      const inside = google.maps.geometry.poly.containsLocation(me, poly);
+      if (!inside){
+        canSend=false;
+        document.getElementById('geoWarn').classList.remove('hidden');
+        document.getElementById('geoWarn').textContent='Sei fuori dal perimetro: puoi leggere ma non inviare.';
+      }
+    }, _=>{});
+
+    loadMessages();
+    subscribeRealtime();
+  })();
+
+  async function loadMessages(){
+    const { data } = await sb.from('messages').select('id,body,created_at,user_id')
+      .eq('room_id',roomId).order('created_at',{ascending:true}).limit(200);
+    const log = document.getElementById('log');
+    log.innerHTML='';
+    (data||[]).forEach(addMsg);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function addMsg(m){
+    const row = document.createElement('div');
+    row.className='py-1';
+    const t = new Date(m.created_at).toLocaleTimeString();
+    row.innerHTML = `<span class="opacity-60 text-xs">${t}</span> <span class="opacity-80">${escapeHtml(m.body)}</span>`;
+    document.getElementById('log').appendChild(row);
+  }
+
+  function subscribeRealtime(){
+    sb.channel('public:messages')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:`room_id=eq.${roomId}`}, payload=>{
+        addMsg(payload.new);
+        const log = document.getElementById('log');
+        log.scrollTop = log.scrollHeight;
+      }).subscribe();
+  }
+
+  document.getElementById('formMsg').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    if (!canSend){ alert('Sei fuori perimetro.'); return;}
+    const val = document.getElementById('msg').value.trim();
+    if (!val) return;
+    document.getElementById('msg').value='';
+    const { error } = await sb.from('messages').insert({ room_id:roomId, body:val });
+    if (error){ console.error(error); alert('Invio non riuscito'); }
+  });
+
+  function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+</script>
+</body>
+</html>
