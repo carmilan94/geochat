@@ -6,21 +6,27 @@
   <title>GeoChat • Il mio profilo</title>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
-    :root{--bg:#0b0b0c;--card:#141417;--fg:#f6f6f7;--muted:#8a8a94;--brand:#ff8a00;--border:#232328}
+    :root{--bg:#0b0b0c;--card:#141417;--fg:#f6f6f7;--muted:#8a8a94;--brand:#ff8a00;--border:#232328;--danger:#ff6767}
     *{box-sizing:border-box} body{margin:0;background:#0b0b0c;color:var(--fg);font-family:system-ui,Segoe UI,Inter,Roboto,Arial}
     header{position:sticky;top:0;background:#0b0b0cdd;backdrop-filter:blur(6px);border-bottom:1px solid var(--border)}
-    .wrap{max-width:900px;margin:0 auto;padding:16px}
+    .wrap{max-width:980px;margin:0 auto;padding:16px}
     .nav{display:flex;align-items:center;justify-content:space-between}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
     .btn{padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:#16161a;color:var(--fg);cursor:pointer}
     .btn.primary{background:linear-gradient(90deg,#ff8a00,#ffb347);color:#1a1a1a;font-weight:700;border:none}
+    .btn.danger{background:#1c1113;border-color:#472126;color:#ff9c9c}
     .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin-top:16px}
     h1{margin:12px 0 8px} .muted{color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1fr;gap:16px}
+    @media(min-width:900px){.grid{grid-template-columns:320px 1fr}}
     .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
     .field input,.field textarea{background:#0f0f12;border:1px solid var(--border);color:var(--fg);border-radius:12px;padding:12px}
     .hint{font-size:12px;color:var(--muted)}
     .badge{font-size:12px;padding:6px 10px;border-radius:999px;background:#101014;border:1px solid var(--border)}
+    .avatar{width:140px;height:140px;border-radius:999px;object-fit:cover;border:2px solid var(--border);background:#0f0f12}
     .toast{position:fixed;right:18px;bottom:18px;background:#141417;border:1px solid var(--border);padding:12px 14px;border-radius:12px;display:none}
+    .error{border:1px solid #402225;background:#1a1011;color:#f9b9b9;padding:12px;border-radius:12px;margin-top:10px;display:none;white-space:pre-wrap}
+    code{background:#0e0e11;padding:2px 6px;border-radius:6px;border:1px solid var(--border)}
   </style>
 </head>
 <body>
@@ -29,12 +35,14 @@
       <div class="row">
         <strong>GeoChat</strong>
         <span id="meEmail" class="badge">…</span>
+        <span id="uidBadge" class="badge">uid: …</span>
       </div>
       <div class="row">
         <a class="btn" href="index.html">Home</a>
         <a class="btn" href="join.html">Entra</a>
         <a class="btn" href="chat.html">Chat</a>
         <a class="btn" href="settings.html">Impostazioni</a>
+        <a class="btn" href="profile.html">Profilo</a>
         <button id="logoutBtn" class="btn">Logout</button>
       </div>
     </div>
@@ -42,112 +50,139 @@
 
   <main class="wrap">
     <h1>Il mio profilo</h1>
-    <p class="muted">Aggiorna i tuoi dati. (Avatar e bacheca foto li aggiungiamo nello step successivo.)</p>
+    <p class="muted">Aggiorna i tuoi dati e la foto profilo. La bacheca foto stile Instagram arriva nello step successivo.</p>
 
-    <section class="card">
-      <form id="profileForm">
-        <div class="field">
-          <label for="display_name">Nome visualizzato</label>
-          <input id="display_name" placeholder="Es. Carmine" />
+    <div id="errBox" class="error"></div>
+
+    <div class="grid">
+      <!-- Colonna sinistra: Avatar -->
+      <section class="card">
+        <h3 style="margin-top:0">Foto profilo</h3>
+        <div class="row" style="gap:16px;margin:12px 0">
+          <img id="avatarImg" class="avatar" alt="avatar"/>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <input type="file" id="avatarFile" accept="image/*"/>
+            <div class="row">
+              <button class="btn" id="uploadAvatarBtn" type="button">Carica avatar</button>
+              <button class="btn danger" id="removeAvatarBtn" type="button">Rimuovi</button>
+            </div>
+            <span class="hint">Consigliato: immagine quadrata 512×512. Verrà salvata su bucket <code>avatars</code> (public read).</span>
+            <a id="publicLink" class="btn" target="_blank" href="#">Vedi profilo pubblico</a>
+          </div>
         </div>
-        <div class="field">
-          <label for="location">Di dove sei</label>
-          <input id="location" placeholder="Es. Napoli (IT)" />
-        </div>
-        <div class="field">
-          <label for="age">Età</label>
-          <input id="age" type="number" min="0" max="120" placeholder="Es. 30" />
-        </div>
-        <div class="field">
-          <label for="bio">Bio</label>
-          <textarea id="bio" rows="4" placeholder="Scrivi qualcosa su di te…"></textarea>
-        </div>
-        <div class="row" style="margin-top:8px">
-          <button type="submit" class="btn primary">Salva modifiche</button>
-          <button type="button" id="reloadBtn" class="btn">Ricarica</button>
-          <a id="publicLink" class="btn" target="_blank" href="#">Vedi profilo pubblico</a>
-        </div>
-        <p class="hint">I dati sono salvati in <code>public.profiles</code>. (RLS abilitate.)</p>
-      </form>
-    </section>
+      </section>
+
+      <!-- Colonna destra: Dati profilo -->
+      <section class="card">
+        <h3 style="margin-top:0">Dati utente</h3>
+        <form id="profileForm">
+          <div class="field">
+            <label for="display_name">Nome visualizzato</label>
+            <input id="display_name" placeholder="Es. Carmine"/>
+          </div>
+          <div class="field">
+            <label for="location">Di dove sei</label>
+            <input id="location" placeholder="Es. Napoli (IT)"/>
+          </div>
+          <div class="field">
+            <label for="age">Età</label>
+            <input id="age" type="number" min="0" max="120" placeholder="Es. 30"/>
+          </div>
+          <div class="field">
+            <label for="bio">Bio</label>
+            <textarea id="bio" rows="4" placeholder="Scrivi qualcosa su di te…"></textarea>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn primary" type="submit">Salva modifiche</button>
+            <button class="btn" type="button" id="reloadBtn">Ricarica</button>
+          </div>
+          <p class="hint">I dati sono salvati in <code>public.profiles</code> con RLS (puoi modificare solo il tuo).</p>
+        </form>
+      </section>
+    </div>
   </main>
 
   <div id="toast" class="toast">Salvato!</div>
 
   <script>
-    // === Supabase init ===
+    // === Supabase init (tuo progetto) ===
     const SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // === Helpers UI ===
     const qs = (s, r=document)=>r.querySelector(s);
-    const toast = (msg, ms=1600) => {
-      const t = qs('#toast'); t.textContent = msg; t.style.display='block';
-      setTimeout(()=> t.style.display='none', ms);
-    };
+    const showErr = (msg) => { const box = qs('#errBox'); box.textContent = msg; box.style.display='block'; };
+    const clearErr = () => { const box = qs('#errBox'); box.textContent = ''; box.style.display='none'; };
+    const toast = (msg, ms=1600) => { const t = qs('#toast'); t.textContent = msg; t.style.display='block'; setTimeout(()=> t.style.display='none', ms); };
 
     let user = null;
 
+    // === Avvio: controllo login, UI e dati ===
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        location.href = 'auth.html?next=profile.html';
-        return;
-      }
+      const { data: { session }, error: sErr } = await supabase.auth.getSession();
+      if (sErr) { showErr("Errore sessione: " + sErr.message); return; }
+      if (!session) { location.href = 'auth.html?next=profile.html'; return; }
+
       user = session.user;
       qs('#meEmail').textContent = user.email;
+      qs('#uidBadge').textContent = 'uid: ' + user.id;
       qs('#publicLink').href = `user.html?uid=${user.id}`;
 
-      qs('#logoutBtn').addEventListener('click', async () => {
-        await supabase.auth.signOut();
-        location.href = 'auth.html';
-      });
+      qs('#logoutBtn').addEventListener('click', async () => { await supabase.auth.signOut(); location.href = 'auth.html'; });
       qs('#reloadBtn').addEventListener('click', loadProfile);
       qs('#profileForm').addEventListener('submit', onSave);
+      qs('#uploadAvatarBtn').addEventListener('click', onUploadAvatar);
+      qs('#removeAvatarBtn').addEventListener('click', onRemoveAvatar);
 
       await ensureProfileRow();
       await loadProfile();
     })();
 
+    // Crea la riga profilo se manca
     async function ensureProfileRow() {
-      // Crea riga profilo vuota se non esiste
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error(error);
-        toast('Errore profilo');
-        return;
-      }
+      clearErr();
+      const { data, error } = await supabase.from('profiles').select('id,avatar_url').eq('id', user.id).maybeSingle();
+      if (error) { showErr("Errore lettura profilo: " + error.message); return; }
       if (!data) {
-        const { error: insErr } = await supabase
-          .from('profiles')
-          .insert([{ id: user.id }]);
-        if (insErr) console.error(insErr);
+        const { error: insErr } = await supabase.from('profiles').insert([{ id: user.id }]);
+        if (insErr) { showErr("Errore creazione profilo: " + insErr.message); }
       }
     }
 
+    // Carica i dati nel form e avatar
     async function loadProfile() {
+      clearErr();
       const { data, error } = await supabase
         .from('profiles')
-        .select('display_name, location, age, bio')
+        .select('display_name, location, age, bio, avatar_url')
         .eq('id', user.id)
         .maybeSingle();
-      if (error) {
-        console.error(error);
-        return toast('Errore nel caricamento');
-      }
+
+      if (error) { showErr("Errore caricamento profilo: " + error.message); return; }
+
       qs('#display_name').value = data?.display_name ?? '';
       qs('#location').value     = data?.location ?? '';
       qs('#age').value          = data?.age ?? '';
       qs('#bio').value          = data?.bio ?? '';
+
+      if (data?.avatar_url) {
+        qs('#avatarImg').src = data.avatar_url;
+      } else {
+        // Placeholder avatar
+        qs('#avatarImg').src = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+          `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140">
+            <rect width="140" height="140" fill="#0f0f12"/>
+            <circle cx="70" cy="56" r="30" fill="#1e1e24"/>
+            <rect x="24" y="92" width="92" height="30" rx="15" fill="#1e1e24"/>
+          </svg>`
+        );
+      }
     }
 
+    // Salva i campi profilo
     async function onSave(e) {
-      e.preventDefault();
+      e.preventDefault(); clearErr();
       const payload = {
         id: user.id,
         display_name: qs('#display_name').value.trim() || null,
@@ -155,16 +190,41 @@
         age: qs('#age').value ? Number(qs('#age').value) : null,
         bio: qs('#bio').value.trim() || null
       };
-      const { error } = await supabase
-        .from('profiles')
-        .upsert(payload, { onConflict: 'id' });
-      if (error) {
-        console.error(error);
-        toast('Errore salvataggio');
-      } else {
-        toast('Profilo aggiornato');
-        await loadProfile();
-      }
+      const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
+      if (error) { showErr("Errore salvataggio: " + error.message); }
+      else { toast('Profilo aggiornato'); await loadProfile(); }
+    }
+
+    // Upload avatar su bucket "avatars/<uid>/<timestamp>_filename"
+    async function onUploadAvatar() {
+      clearErr();
+      const file = qs('#avatarFile').files?.[0];
+      if (!file) { toast('Seleziona un file'); return; }
+
+      const safeName = file.name.replace(/\s+/g,'_');
+      const filePath = `${user.id}/${Date.now()}_${safeName}`;
+
+      const { error: upErr } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: false });
+      if (upErr) { showErr("Upload avatar fallito: " + upErr.message); return; }
+
+      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const avatarUrl = pub?.publicUrl;
+
+      const { error: updErr } = await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', user.id);
+      if (updErr) { showErr("Avatar caricato ma errore nel salvataggio URL: " + updErr.message); return; }
+
+      qs('#avatarImg').src = avatarUrl;
+      qs('#avatarFile').value = '';
+      toast('Avatar aggiornato');
+    }
+
+    // Rimuovi avatar (azzera campo, non cancella file dallo storage)
+    async function onRemoveAvatar() {
+      clearErr();
+      const { error } = await supabase.from('profiles').update({ avatar_url: null }).eq('id', user.id);
+      if (error) { showErr("Errore rimozione avatar: " + error.message); return; }
+      await loadProfile();
+      toast('Avatar rimosso');
     }
   </script>
 </body>
