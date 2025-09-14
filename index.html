@@ -347,5 +347,51 @@
   <script async defer 
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=places,drawing,geometry&callback=initMap">
   </script>
+<script>
+(function () {
+  function show(tab) {
+    const create    = document.getElementById('createSection');
+    const join      = document.getElementById('joinSection');
+    const navCreate = document.getElementById('navCreate');
+    const navJoin   = document.getElementById('navJoin');
+    if (!create || !join) return;
+
+    if (tab === 'create') {
+      create.classList.remove('hidden');
+      join.classList.add('hidden');
+      navCreate?.classList.add('text-slate-900','font-bold');
+      navJoin?.classList.remove('text-slate-900','font-bold');
+    } else {
+      join.classList.remove('hidden');
+      create.classList.add('hidden');
+      navJoin?.classList.add('text-slate-900','font-bold');
+      navCreate?.classList.remove('text-slate-900','font-bold');
+    }
+
+    try { localStorage.setItem('gc_tab', tab); } catch (e) {}
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Avvio: preferisci "create" (o ?tab=join per forzare join)
+    const urlTab = new URL(location.href).searchParams.get('tab');
+    const saved  = localStorage.getItem('gc_tab');
+    const start  = urlTab || saved || 'create';
+    show(start);
+
+    document.getElementById('navCreate')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      show('create');
+    });
+
+    document.getElementById('navJoin')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      show('join');
+    });
+  });
+})();
+</script>
+
+
+
 </body>
 </html>
