@@ -30,4 +30,82 @@
     </div>
 
     <div class="card">
-      <h3
+      <h3 style="margin-top:0">Bacheca</h3>
+      <div id="gallery" class="gallery"></div>
+      <p id="empty" class="muted" style="display:none">Nessuna foto caricata.</p>
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const params = new URLSearchParams(window.location.search);
+    const uid = params.get("uid");
+
+    if (!uid) {
+      document.body.innerHTML = "<div class='wrap'><p style='color:red'>Errore: nessun UID specificato.</p></div>";
+    } else {
+      loadProfile(uid);
+      loadGallery(uid);
+    }
+
+    async function loadProfile(uid) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('display_name, bio, age, location, avatar_url')
+        .eq('id', uid)
+        .maybeSingle();
+
+      if (error) {
+        document.body.innerHTML = `<div class='wrap'><div style="color:#f99;background:#210;padding:12px;border-radius:10px"><strong>Errore caricamento profilo</strong><br>${error.message}</div></div>`;
+        return;
+      }
+      if (!data) {
+        document.body.innerHTML = "<div class='wrap'><p style='color:red'>Profilo non trovato.</p></div>";
+        return;
+      }
+
+      document.getElementById('display_name').textContent = data.display_name || "Utente senza nome";
+      document.getElementById('bio').textContent = data.bio || "";
+      const pieces = [];
+      if (data.age) pieces.push(`Età: ${data.age}`);
+      if (data.location) pieces.push(`Località: ${data.location}`);
+      document.getElementById('extra').textContent = pieces.join(' · ') || "";
+      document.getElementById('avatar').src = data.avatar_url ||
+        'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" fill="#0f0f12"/><circle cx="80" cy="64" r="34" fill="#1e1e24"/><rect x="28" y="106" width="104" height="34" rx="17" fill="#1e1e24"/></svg>`);
+    }
+
+    async function loadGallery(uid){
+      const grid = document.getElementById('gallery');
+      const empty = document.getElementById('empty');
+      grid.innerHTML = ''; empty.style.display='none';
+
+      const { data, error } = await supabase
+        .from('user_photos')
+        .select('image_path, caption, created_at')
+        .eq('user_id', uid)
+        .order('created_at', { ascending:false });
+
+      if (error){
+        grid.innerHTML = `<div style="color:#f99;background:#210;padding:12px;border-radius:10px">Errore galleria: ${error.message}</div>`;
+        return;
+      }
+      if (!data || !data.length){
+        empty.style.display='block';
+        return;
+      }
+
+      for (const ph of data){
+        const a = document.createElement('a');
+        a.href = ph.image_path; a.target = "_blank"; a.rel = "noopener";
+        a.className = 'tile';
+        a.title = ph.caption || '';
+        a.innerHTML = `<img src="${ph.image_path}" alt="photo">`;
+        grid.appendChild(a);
+      }
+    }
+  </script>
+</body>
+</html>
