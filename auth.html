@@ -66,27 +66,20 @@
     </div>
   </div>
 
-  <!-- Supabase UMD -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Carico Supabase *defer* in modo non bloccante -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      // Config Supabase (tuo progetto)
-      const SUPABASE_URL  = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
-      const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
-
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-
+    // 1) AGGANCIO SUBITO IL TOGGLE TAB (indipendente da Supabase)
+    (function initTabs(){
       const tabLogin  = document.getElementById('tabLogin');
       const tabSignup = document.getElementById('tabSignup');
       const formLogin  = document.getElementById('formLogin');
       const formSignup = document.getElementById('formSignup');
       const msg = document.getElementById('msg');
-
       function setMsg(t){ msg.textContent = t || ""; }
 
-      // Toggle tab
-      tabLogin.addEventListener('click', (e)=>{
-        e.preventDefault();
+      tabLogin.addEventListener('click', ()=>{
         tabLogin.classList.add('bg-slate-900','text-white');
         tabSignup.classList.remove('bg-slate-900','text-white');
         formLogin.classList.remove('hidden');
@@ -94,14 +87,35 @@
         setMsg('');
       });
 
-      tabSignup.addEventListener('click', (e)=>{
-        e.preventDefault();
+      tabSignup.addEventListener('click', ()=>{
         tabSignup.classList.add('bg-slate-900','text-white');
         tabLogin.classList.remove('bg-slate-900','text-white');
         formSignup.classList.remove('hidden');
         formLogin.classList.add('hidden');
         setMsg('');
       });
+    })();
+
+    // 2) INIZIALIZZO SUPABASE SOLO DOPO IL CARICAMENTO COMPLETO
+    window.addEventListener('load', () => {
+      const msg = document.getElementById('msg');
+      const formLogin  = document.getElementById('formLogin');
+      const formSignup = document.getElementById('formSignup');
+
+      function setMsg(t){ msg.textContent = t || ""; }
+      function disableForms(){
+        [...document.querySelectorAll('button, input')].forEach(el => el.disabled = true);
+      }
+
+      if (!window.supabase || !window.supabase.createClient){
+        setMsg('Errore: libreria Supabase non caricata. Riprova (Ctrl/Cmd + Shift + R).');
+        disableForms();
+        return;
+      }
+
+      const SUPABASE_URL  = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
+      const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
       // LOGIN
       formLogin.addEventListener('submit', async (e) => {
