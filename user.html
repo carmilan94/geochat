@@ -9,31 +9,31 @@
     :root{--bg:#0b0b0c;--card:#141417;--fg:#f6f6f7;--muted:#8a8a94;--border:#232328}
     *{box-sizing:border-box} body{margin:0;background:#0b0b0c;color:var(--fg);font-family:system-ui,Segoe UI,Inter,Roboto,Arial}
     .wrap{max-width:720px;margin:0 auto;padding:20px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin-top:16px}
-    h1{margin:12px 0 8px}
-    .muted{color:var(--muted)}
-    .avatar{width:160px;height:160px;border-radius:999px;object-fit:cover;border:2px solid var(--border);background:#0f0f12;display:block;margin:0 auto}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px;margin-top:16px}
     .center{text-align:center}
-    .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+    .avatar{width:160px;height:160px;border-radius:999px;object-fit:cover;border:2px solid var(--border);background:#0f0f12;display:block;margin:0 auto 10px}
+    h1{margin:8px 0 4px}
+    .muted{color:var(--muted)}
+    .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
     @media(max-width:640px){.gallery{grid-template-columns:repeat(2,1fr)}}
-    .tile{overflow:hidden;border-radius:12px;border:1px solid var(--border);background:#0f0f12}
+    .tile{overflow:hidden;border-radius:14px;border:1px solid var(--border);background:#0f0f12}
     .tile img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
   </style>
 </head>
 <body>
   <main class="wrap">
-    <div class="card center">
+    <section class="card center" id="header">
       <img id="avatar" class="avatar" src="" alt="avatar"/>
       <h1 id="display_name">Caricamento…</h1>
       <p id="bio" class="muted"></p>
       <p id="extra" class="muted"></p>
-    </div>
+    </section>
 
-    <div class="card">
-      <h3 style="margin-top:0">Bacheca</h3>
+    <section class="card">
+      <h3 style="margin:0">Bacheca</h3>
       <div id="gallery" class="gallery"></div>
       <p id="empty" class="muted" style="display:none">Nessuna foto caricata.</p>
-    </div>
+    </section>
   </main>
 
   <script>
@@ -59,20 +59,22 @@
         .maybeSingle();
 
       if (error) {
-        document.body.innerHTML = `<div class='wrap'><div style="color:#f99;background:#210;padding:12px;border-radius:10px"><strong>Errore caricamento profilo</strong><br>${error.message}</div></div>`;
+        document.getElementById('header').innerHTML =
+          `<div style="color:#f99;background:#210;padding:12px;border-radius:10px">Errore profilo: ${error.message}</div>`;
         return;
       }
       if (!data) {
-        document.body.innerHTML = "<div class='wrap'><p style='color:red'>Profilo non trovato.</p></div>";
+        document.getElementById('header').innerHTML = "<p style='color:red'>Profilo non trovato.</p>";
         return;
       }
 
       document.getElementById('display_name').textContent = data.display_name || "Utente senza nome";
       document.getElementById('bio').textContent = data.bio || "";
-      const pieces = [];
-      if (data.age) pieces.push(`Età: ${data.age}`);
-      if (data.location) pieces.push(`Località: ${data.location}`);
-      document.getElementById('extra').textContent = pieces.join(' · ') || "";
+      const parts = [];
+      if (data.age) parts.push(`Età: ${data.age}`);
+      if (data.location) parts.push(`Località: ${data.location}`);
+      document.getElementById('extra').textContent = parts.join(' · ') || "";
+
       document.getElementById('avatar').src = data.avatar_url ||
         'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" fill="#0f0f12"/><circle cx="80" cy="64" r="34" fill="#1e1e24"/><rect x="28" y="106" width="104" height="34" rx="17" fill="#1e1e24"/></svg>`);
     }
