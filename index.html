@@ -3,118 +3,96 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GeoChat • Crea chat geofence</title>
+  <title>GeoChat • Home</title>
 
   <!-- Tailwind (ok per MVP) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- QRCode lib -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
   <style>
-    #map { height: 460px; }
-    .gm-control-btn{ background:#fff; border:1px solid #e5e7eb; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,.10); padding:6px 10px; margin-right:6px; font-size:12px; cursor:pointer; }
-    .gm-control-btn[disabled]{ opacity:.5; cursor:default; }
-    .badgelite{font-size:12px; padding:2px 8px; border-radius:999px;}
+    /* Tema: arancione → nero */
+    .app-gradient { background: linear-gradient(135deg, #ff7a18 0%, #0b0b0b 55%); }
+    .glass { background: rgba(255,255,255,0.06); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.08); }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen">
+<body class="min-h-screen text-slate-100 app-gradient">
 
-  <!-- topbar -->
-  <header class="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-slate-200">
+  <!-- Topbar -->
+  <header class="sticky top-0 z-20 glass">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-      <div class="flex items-center gap-2">
-        <div class="text-xl font-bold">GeoChat</div>
-        <span class="text-sm text-slate-500">MVP • Supabase + Google Maps</span>
-      </div>
+      <div class="text-xl font-bold tracking-wide">GeoChat</div>
+      <span class="text-sm text-amber-300/80">Trova le chat vicino a te</span>
 
       <nav class="ms-auto flex items-center gap-4">
-        <a id="navCreate" href="#" class="text-slate-700 hover:text-slate-900">Crea chat</a>
-        <a id="navJoin" href="#" class="text-slate-500 hover:text-slate-900">Entra</a>
-        <a href="admin.html" class="text-slate-500 hover:text-slate-900">Admin</a>
+        <a href="/" class="text-slate-200 hover:text-white">Home</a>
+        <a href="/create.html" class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-medium">Crea la tua chat</a>
+        <a href="/admin.html" class="text-slate-200/80 hover:text-white">Admin</a>
 
-        <!-- utente + logout -->
-        <span id="userEmail" class="hidden text-sm text-slate-500 ml-4"></span>
-        <button id="btnLogout" class="hidden ml-2 px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700">
+        <span id="userEmail" class="hidden text-sm text-slate-300 ml-3"></span>
+        <button id="btnLogout" class="hidden ml-2 px-3 py-1 rounded-lg bg-slate-900/70 hover:bg-slate-900">
           Esci
         </button>
       </nav>
     </div>
   </header>
 
-  <!-- APP (nascosta finché non validiamo la sessione) -->
-  <main id="app" class="max-w-6xl mx-auto px-4 py-6 hidden">
-
-    <div id="authStrip" class="mb-4 px-3 py-2 rounded-xl bg-amber-50 text-amber-800 hidden">
-      Devi essere registrato per creare o entrare in una chat.
-    </div>
-
-    <!-- CREA CHAT -->
-    <section id="createSection" class="space-y-6">
-      <div class="grid md:grid-cols-3 gap-4">
-        <div class="md:col-span-2 bg-white rounded-2xl shadow p-4">
-          <h2 class="text-lg font-semibold mb-3">1) Cerca indirizzo/attività & disegna il perimetro</h2>
-
-          <div class="flex gap-2 mb-3">
-            <input id="inVenueName" type="text" placeholder="Nome del locale (es. Bar Centrale)" class="w-1/3 px-3 py-2 border rounded-lg focus:outline-none focus:ring" />
-            <input id="inAddress" type="text" placeholder="Indirizzo (es. 'Pizzeria Da Mario' o 'Via Roma 10, Napoli')" class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring" autocomplete="off"/>
-            <button id="btnSearch" class="px-4 rounded-lg bg-slate-900 text-white">Cerca</button>
-          </div>
-
-          <div class="flex items-center gap-3 mb-2 text-sm text-slate-600">
-            <span class="badgelite bg-slate-100">Strumenti</span>
-            <button id="btnDraw"    class="badgelite bg-slate-100 px-3">✚ Disegna</button>
-            <button id="btnEdit"    class="badgelite bg-slate-100 px-3">✎ Modifica</button>
-            <button id="btnDelete"  class="badgelite bg-slate-100 px-3">🗑 Elimina</button>
-          </div>
-
-          <div id="map" class="rounded-xl overflow-hidden border relative"></div>
-
-          <p class="mt-2 text-sm text-slate-600">
-            Disegna un <strong>poligono</strong> intorno al locale. Usa i bottoni in alto a sinistra della mappa.<br/>
-            Per rimuovere un vertice: <em>click destro</em> su quel punto.
-          </p>
-        </div>
-
-        <div class="md:col-span-1 bg-white rounded-2xl shadow p-4">
-          <h3 class="text-lg font-semibold mb-3">2) Dettagli & crea link/QR</h3>
-
-          <label class="block text-sm mb-1">Descrizione (opzionale)</label>
-          <textarea id="venueDesc" class="w-full h-28 px-3 py-2 border rounded-lg focus:outline-none focus:ring" placeholder="Es. Chat del Bar Centrale solo per chi è dentro il locale"></textarea>
-
-          <button id="btnCreateChat" class="w-full mt-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white">
-            Crea chat & genera QR
-          </button>
-
-          <div id="resultBox" class="mt-4 hidden">
-            <label class="block text-sm mb-1">Link di accesso</label>
-            <div class="flex gap-2">
-              <input id="chatLink" class="flex-1 px-3 py-2 border rounded-lg bg-slate-50" readonly />
-              <button id="btnCopyLink" class="px-3 rounded-lg bg-slate-900 text-white">Copia</button>
-            </div>
-            <div class="mt-3">
-              <div id="qrBox" class="p-2 bg-white inline-block rounded-xl border"></div>
-              <button id="btnDownloadQR" class="ml-2 px-3 py-2 rounded-lg bg-slate-100">Scarica QR</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ENTRA -->
-    <section id="joinSection" class="hidden">
-      <div class="bg-white rounded-2xl shadow p-4">
-        <h2 class="text-lg font-semibold mb-2">Entra in una chat</h2>
-        <p class="text-sm text-slate-600">
-          Apri un link con <code>?room=...</code> oppure scansiona un QR creato da un locale.
+  <!-- Contenuto -->
+  <main id="app" class="max-w-6xl mx-auto px-4 py-8 hidden">
+    <!-- Hero -->
+    <section class="mb-6">
+      <div class="glass rounded-2xl p-6">
+        <h1 class="text-2xl font-semibold">Chat vicino a te</h1>
+        <p class="text-slate-300 mt-1">
+          Vedi le chat disponibili, la distanza dalla tua posizione e apri le indicazioni con Google Maps.
         </p>
+
+        <div class="mt-4 flex items-center gap-3">
+          <button id="btnUseGps" class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20">
+            📍 Usa la mia posizione
+          </button>
+          <span id="gpsStatus" class="text-sm text-amber-200/90"></span>
+        </div>
       </div>
     </section>
+
+    <!-- Lista -->
+    <section id="listSection" class="space-y-4"></section>
+
+    <!-- empty state -->
+    <template id="tplEmpty">
+      <div class="glass rounded-2xl p-6 text-center text-slate-200">
+        Nessuna chat trovata. Crea la tua chat oppure riprova più tardi.
+      </div>
+    </template>
+
+    <!-- card -->
+    <template id="tplCard">
+      <div class="glass rounded-2xl p-5 flex items-start gap-4">
+        <div class="shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-black grid place-items-center font-bold">
+          GC
+        </div>
+        <div class="grow">
+          <div class="flex items-center gap-2 flex-wrap">
+            <h3 class="text-lg font-semibold"></h3>
+            <span class="text-xs px-2 py-1 rounded-full bg-white/10 border border-white/10">Attivi: <b class="online">—</b></span>
+            <span class="text-xs px-2 py-1 rounded-full bg-white/10 border border-white/10 distBadge">⋯</span>
+          </div>
+          <p class="text-sm text-slate-300 mt-1 address"></p>
+          <p class="text-sm text-slate-300 mt-1 desc hidden"></p>
+
+          <div class="mt-3 flex items-center gap-2">
+            <a class="openMaps px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-medium"
+               target="_blank" rel="noopener">Apri in Google Maps</a>
+            <a class="openRoom px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
+               target="_blank" rel="noopener">Apri chat</a>
+          </div>
+        </div>
+      </div>
+    </template>
   </main>
 
   <!-- ===============  SCRIPT  =============== -->
 
-  <!-- AUTH-GUARD + Supabase init -->
+  <!-- Supabase + Auth guard -->
   <script>
   (async () => {
     const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
@@ -123,7 +101,7 @@
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Sessione
+    // Auth guard
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       const back = encodeURIComponent(location.href);
@@ -131,203 +109,142 @@
       return;
     }
 
-    // Espongo per gli altri script
+    // Mostra email + logout
+    const emailSpan = document.getElementById('userEmail');
+    const btnLogout = document.getElementById('btnLogout');
+    emailSpan.textContent = session.user.email || '';
+    emailSpan.classList.remove('hidden');
+    btnLogout.classList.remove('hidden');
+    btnLogout.addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      location.href = '/auth.html';
+    });
+
+    document.getElementById('app').classList.remove('hidden');
+
+    // Stato utente & funzioni utili a livello globale
     window.supabase = supabase;
     window.currentUser = session.user;
 
-    // UI: mostra email + tasto logout
-    const emailSpan = document.getElementById('userEmail');
-    const btnLogout = document.getElementById('btnLogout');
-    if (emailSpan) {
-      emailSpan.textContent = session.user.email || '';
-      emailSpan.classList.remove('hidden');
-    }
-    if (btnLogout) {
-      btnLogout.classList.remove('hidden');
-      btnLogout.addEventListener('click', async () => {
-        await supabase.auth.signOut();
-        location.href = '/auth.html';
-      });
-    }
-
-    // Mostra app
-    document.getElementById('app')?.classList.remove('hidden');
-
-    // Avvia UI e mappa
-    initUi();
+    initHome();
   })();
-  </script>
 
-  <!-- UI: toggle tab, copia link, scarica QR -->
-  <script>
-  function initUi() {
-    const createSection = document.getElementById('createSection');
-    const joinSection   = document.getElementById('joinSection');
-    const navCreate     = document.getElementById('navCreate');
-    const navJoin       = document.getElementById('navJoin');
+  // ---------- HOME ----------
+  async function initHome() {
+    const listEl = document.getElementById('listSection');
+    const tplCard = document.getElementById('tplCard');
+    const tplEmpty = document.getElementById('tplEmpty');
+    const gpsStatus = document.getElementById('gpsStatus');
 
-    function show(tab){
-      if(tab==='create'){
-        createSection.classList.remove('hidden');
-        joinSection.classList.add('hidden');
-        navCreate?.classList.add('text-slate-900','font-bold');
-        navJoin?.classList.remove('text-slate-900','font-bold');
-      }else{
-        joinSection.classList.remove('hidden');
-        createSection.classList.add('hidden');
-        navJoin?.classList.add('text-slate-900','font-bold');
-        navCreate?.classList.remove('text-slate-900','font-bold');
-      }
-      try{ localStorage.setItem('gc_tab', tab);}catch(e){}
-    }
+    let userPos = null;
 
-    const urlTab = new URL(location.href).searchParams.get('tab');
-    const saved  = localStorage.getItem('gc_tab');
-    show(urlTab || saved || 'create');
+    const formatDist = (m) => {
+      if (m == null) return 'distanza sconosciuta';
+      if (m < 1000) return `${Math.round(m)} m`;
+      return `${(m/1000).toFixed(1)} km`;
+    };
 
-    navCreate?.addEventListener('click', (e)=>{ e.preventDefault(); show('create'); });
-    navJoin?.addEventListener('click',   (e)=>{ e.preventDefault(); show('join'); });
+    const haversine = (lat1, lon1, lat2, lon2) => {
+      const R = 6371000;
+      const toRad = (deg) => deg * Math.PI/180;
+      const dLat = toRad(lat2-lat1);
+      const dLon = toRad(lon2-lon1);
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      return 2 * R * Math.asin(Math.sqrt(a));
+    };
 
-    document.getElementById('btnCopyLink')?.addEventListener('click', () => {
-      const val = document.getElementById('chatLink').value;
-      navigator.clipboard.writeText(val).then(() => alert('Link copiato!'));
-    });
+    async function loadRooms() {
+      listEl.innerHTML = '';
+      gpsStatus.textContent = 'Caricamento…';
 
-    document.getElementById('btnDownloadQR')?.addEventListener('click', () => {
-      const canvas = document.querySelector('#qrBox canvas');
-      if (!canvas) return;
-      const url = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = url; a.download = 'geochat-qr.png'; a.click();
-    });
-  }
-  </script>
-
-  <!-- Google Maps (Places + Drawing) -->
-  <script>
-  let map, geocoder, drawingManager, currentPolygon = null, autocomplete;
-
-  function initMap() {
-    geocoder = new google.maps.Geocoder();
-    map = new google.maps.Map(document.getElementById("map"), {
-      center: { lat: 41.9028, lng: 12.4964 }, // Roma
-      zoom: 14,
-      mapTypeControl: true,
-      streetViewControl: false,
-      fullscreenControl: false
-    });
-
-    const input = document.getElementById('inAddress');
-    autocomplete = new google.maps.places.Autocomplete(input, { types: ['geocode'] });
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (place.geometry && place.geometry.location) {
-        map.panTo(place.geometry.location);
-        map.setZoom(17);
-      }
-    });
-
-    drawingManager = new google.maps.drawing.DrawingManager({
-      drawingMode: null,
-      drawingControl: false,
-      polygonOptions: {
-        editable: true,
-        fillColor: '#22c55e',
-        fillOpacity: 0.15,
-        strokeColor: '#16a34a',
-        strokeWeight: 2
-      }
-    });
-    drawingManager.setMap(map);
-
-    google.maps.event.addListener(drawingManager, 'polygoncomplete', poly => {
-      if (currentPolygon) currentPolygon.setMap(null);
-      currentPolygon = poly;
-    });
-
-    document.getElementById('btnDraw')?.addEventListener('click', () => {
-      drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
-    });
-    document.getElementById('btnEdit')?.addEventListener('click', () => {
-      if (currentPolygon) currentPolygon.setEditable(true);
-      drawingManager.setDrawingMode(null);
-    });
-    document.getElementById('btnDelete')?.addEventListener('click', () => {
-      if (currentPolygon) { currentPolygon.setMap(null); currentPolygon = null; }
-      drawingManager.setDrawingMode(null);
-    });
-
-    document.getElementById('btnSearch')?.addEventListener('click', () => {
-      const addr = document.getElementById('inAddress').value.trim();
-      if (!addr) return;
-      geocoder.geocode({ address: addr }, (res, status) => {
-        if (status === 'OK' && res[0]) {
-          map.panTo(res[0].geometry.location);
-          map.setZoom(17);
-        }
-      });
-    });
-
-    document.getElementById('btnCreateChat')?.addEventListener('click', async () => {
-      const name = document.getElementById('inVenueName').value.trim();
-      const address = document.getElementById('inAddress').value.trim();
-      const desc = document.getElementById('venueDesc').value.trim();
-
-      if (!name) { alert('Inserisci un nome locale.'); return; }
-      if (!address) { alert('Inserisci un indirizzo/attività.'); return; }
-      if (!currentPolygon) { alert('Disegna un perimetro sulla mappa.'); return; }
-
-      const path = currentPolygon.getPath().getArray();
-      if (path.length < 3) { alert('Il poligono deve avere almeno 3 punti.'); return; }
-
-      const coords = [ path.map(p => [p.lng(), p.lat()]) ];
-      const first = coords[0][0], last = coords[0][coords[0].length - 1];
-      if (first[0] !== last[0] || first[1] !== last[1]) coords[0].push(first);
-
-      const center = currentPolygon.getBounds().getCenter();
-      const id = Math.random().toString(36).slice(2,10);
-
-      const payload = {
-        id,
-        name,
-        description: desc || null,
-        address,
-        polygon: { type: 'Polygon', coordinates: coords },
-        center_lat: center.lat(),
-        center_lng: center.lng(),
-        owner_id: window.currentUser?.id || null
-      };
-
-      const { data, error } = await window.supabase
+      const { data: rooms, error } = await window.supabase
         .from('rooms')
-        .insert(payload)
-        .select('id')
-        .single();
+        .select('id, name, address, description, center_lat, center_lng, created_at')
+        .order('created_at', { ascending: false })
+        .limit(200);
 
       if (error) {
+        gpsStatus.textContent = 'Errore nel caricamento.';
         console.error(error);
-        alert('Errore nel salvataggio: ' + error.message);
         return;
       }
 
-      const link = `${location.origin}/?room=${data.id}`;
-      document.getElementById('chatLink').value = link;
-      document.getElementById('resultBox').classList.remove('hidden');
+      if (!rooms || rooms.length === 0) {
+        listEl.appendChild(tplEmpty.content.cloneNode(true));
+        gpsStatus.textContent = '';
+        return;
+      }
 
-      const qrBox = document.getElementById('qrBox');
-      qrBox.innerHTML = '';
-      new QRCode(qrBox, { text: link, width: 160, height: 160 });
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      // calcola distanze
+      let enriched = rooms.map(r => {
+        let dist = null;
+        if (userPos) dist = haversine(userPos.lat, userPos.lng, r.center_lat, r.center_lng);
+        return { ...r, _dist: dist };
+      });
+
+      // ordina per distanza se disponibile
+      enriched.sort((a,b) => {
+        if (a._dist == null && b._dist == null) return 0;
+        if (a._dist == null) return 1;
+        if (b._dist == null) return -1;
+        return a._dist - b._dist;
+      });
+
+      // render
+      for (const r of enriched) {
+        const node = tplCard.content.cloneNode(true);
+        node.querySelector('h3').textContent = r.name || 'Senza nome';
+        node.querySelector('.address').textContent = r.address || 'Indirizzo non disponibile';
+
+        if (r.description) {
+          const d = node.querySelector('.desc');
+          d.textContent = r.description;
+          d.classList.remove('hidden');
+        }
+
+        node.querySelector('.distBadge').textContent = `Distanza: ${formatDist(r._dist)}`;
+
+        const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(r.center_lat+','+r.center_lng)}&travelmode=walking`;
+        node.querySelector('.openMaps').href = gmapsUrl;
+
+        const roomUrl = `${location.origin}/?room=${r.id}`;
+        node.querySelector('.openRoom').href = roomUrl;
+
+        listEl.appendChild(node);
+      }
+
+      gpsStatus.textContent = userPos ? 'Posizione rilevata.' : 'Posizione non disponibile (lista non ordinata).';
+    }
+
+    // GPS
+    async function askGps() {
+      gpsStatus.textContent = 'Richiesta posizione…';
+      return new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            gpsStatus.textContent = 'Posizione aggiornata ✅';
+            resolve(true);
+          },
+          () => {
+            userPos = null;
+            gpsStatus.textContent = 'Permesso negato o errore GPS.';
+            resolve(false);
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      });
+    }
+
+    document.getElementById('btnUseGps').addEventListener('click', async () => {
+      await askGps();
+      loadRooms();
     });
+
+    // primo caricamento senza GPS (ordina per data)
+    await loadRooms();
   }
-
-  window.initMap = initMap;
   </script>
-
-  <!-- Google Maps JS -->
-  <script
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=places,drawing,geometry&callback=initMap"
-    async defer></script>
 
 </body>
 </html>
