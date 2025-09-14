@@ -76,26 +76,34 @@
       background:#16161a;border:1px solid var(--border);border-radius:12px;padding:12px 14px;text-align:left}
     .drawer-nav .mitem.logout{background:#1a1112;border-color:#442325;color:#ffb3b3}
 
-    /* === VIEWER (zoom stile Instagram) === */
+    /* === VIEWER (zoom stile Instagram) — SEMPRE visibile barra commenti === */
     .viewer{position:fixed;inset:0;display:none;z-index:90;background:rgba(0,0,0,.65)}
-    .viewer .box{position:absolute;inset:0;display:grid;place-items:center;padding:16px}
-    .viewer .panel{width:min(980px,100%);height:min(82vh,100%);background:#141417;border:1px solid var(--border);border-radius:16px;display:grid;grid-template-columns:1fr 360px;overflow:hidden}
-    @media(max-width:900px){.viewer .panel{grid-template-columns:1fr}}
-    .viewer .left{background:#0b0b0f;display:grid;place-items:center}
+    .viewer .box{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;padding:16px;overflow:auto}
+    .viewer .panel{
+      width:min(1024px,100%); height:min(90vh,100%);  /* altezza fissa a viewport */
+      background:#141417;border:1px solid var(--border);border-radius:16px;
+      display:grid;grid-template-columns:minmax(0,1fr) 380px; /* destra 380px */
+      overflow:hidden
+    }
+    @media(max-width:900px){
+      .viewer .panel{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+      .viewer .left{max-height:55vh}
+      .viewer .left img{max-height:55vh}
+    }
+    .viewer .left{background:#0b0b0f;display:grid;place-items:center;min-width:0;min-height:0}
     .viewer .left img{max-width:100%;max-height:100%;object-fit:contain;background:#0b0b0f}
-    .viewer .right{display:flex;flex-direction:column}
+    .viewer .right{display:flex;flex-direction:column;height:100%;min-height:0} /* importante */
     .viewer .topbar{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--border)}
     .viewer .meta{padding:12px;border-bottom:1px dashed var(--border)}
     .viewer .actions{display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px dashed var(--border)}
     .heart{font-size:22px;line-height:1;background:#1a1a1e;border:1px solid var(--border);border-radius:12px;padding:8px 10px;cursor:pointer}
     .heart.liked{background:#2a1414;border-color:#4a2424;color:#ff9aa0}
-    .viewer .comments{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+    .viewer .comments{flex:1;min-height:0;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
     .comment{background:#101015;border:1px solid var(--border);border-radius:12px;padding:10px}
     .comment .by{font-size:12px;color:var(--muted)}
     .comment .text{margin:6px 0 0}
-    .viewer .newc{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border)}
+    .viewer .newc{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);background:#141417}
     .viewer .newc input{flex:1;background:#0f0f12;border:1px solid var(--border);color:#fff;border-radius:12px;padding:10px}
-    .viewer .closeX{position:absolute;top:10px;right:10px}
   </style>
 </head>
 <body>
@@ -106,8 +114,6 @@
         <span id="meEmail" class="badge">…</span>
         <span id="uidBadge" class="badge">uid: …</span>
       </div>
-
-      <!-- Nav desktop -->
       <div class="row nav-right">
         <a class="btn" href="index.html">Home</a>
         <a class="btn" href="join.html">Entra</a>
@@ -116,15 +122,12 @@
         <a class="btn" href="profile.html">Profilo</a>
         <button id="logoutBtn" class="btn">Logout</button>
       </div>
-
-      <!-- Hamburger mobile -->
       <button id="hamburger" class="hamburger" aria-label="Apri menu" aria-controls="mobileDrawer" aria-expanded="false">
         <span></span><span></span><span></span>
       </button>
     </div>
   </header>
 
-  <!-- Overlay + Drawer mobile -->
   <div id="mobileOverlay" class="mobile-overlay" aria-hidden="true"></div>
   <aside id="mobileDrawer" class="mobile-drawer" aria-hidden="true">
     <div class="drawer-head">
@@ -142,7 +145,6 @@
   </aside>
 
   <main class="wrap">
-    <!-- Header profilo -->
     <section class="card">
       <div class="profile-header">
         <img id="avatarImg" class="avatar" alt="avatar"/>
@@ -156,13 +158,12 @@
         </div>
       </div>
 
-      <!-- PANNELLO EDIT -->
       <div id="editPanel" class="edit" style="display:none">
         <form id="profileForm" class="grid" onsubmit="return false">
           <div class="field" style="grid-column:1/-1">
             <label for="avatarFile">Foto profilo</label>
             <input type="file" id="avatarFile" accept="image/*"/>
-            <p class="muted" style="margin:6px 0 0">Seleziona la foto e premi <b>Salva modifiche</b>. Il pannello si chiuderà e l’avatar resterà.</p>
+            <p class="muted" style="margin:6px 0 0">Seleziona la foto e premi <b>Salva modifiche</b>.</p>
           </div>
           <div class="field">
             <label for="display_name">Nome visualizzato</label>
@@ -189,7 +190,6 @@
       </div>
     </section>
 
-    <!-- Bacheca -->
     <section class="card">
       <div class="row" style="justify-content:space-between;align-items:center">
         <h3 style="margin:0">Bacheca</h3>
@@ -228,9 +228,7 @@
             <strong id="viewOwner">Profilo</strong>
             <button id="closeViewer" class="btn">✕</button>
           </div>
-          <div class="meta">
-            <div id="viewCaption" class="muted"></div>
-          </div>
+          <div class="meta"><div id="viewCaption" class="muted"></div></div>
           <div class="actions">
             <button id="likeBtn" class="heart">♡</button>
             <span id="likeCount" class="muted">0 like</span>
@@ -251,7 +249,6 @@
   <div id="errBox" class="error"></div>
 
   <script>
-    // === Supabase init ===
     const SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -262,41 +259,39 @@
     const toast = (m,ms=1600)=>{const t=qs('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',ms);};
 
     let user = null;
-    let chosenFiles = []; // upload batch
-    let currentPhoto = null; // {id, user_id, image_path, caption}
+    let chosenFiles = [];
+    let currentPhoto = null;
 
     (async () => {
       const { data: { session }, error: sErr } = await supabase.auth.getSession();
-      if (sErr) { showErr("Errore sessione: "+sErr.message); return; }
-      if (!session) { location.href = 'auth.html?next=profile.html'; return; }
+      if (!session){ location.href='auth.html?next=profile.html'; return; }
       user = session.user;
 
       qs('#meEmail').textContent = user.email;
       qs('#uidBadge').textContent = 'uid: ' + user.id;
 
-      // Listeners header + mobile drawer
-      qs('#logoutBtn').addEventListener('click', async () => { await supabase.auth.signOut(); location.href = 'auth.html'; });
-      const hamburger = qs('#hamburger'); const overlay = qs('#mobileOverlay'); const drawer = qs('#mobileDrawer'); const closeBtn = qs('#closeDrawer');
-      function openDrawer(){ overlay.classList.add('open'); drawer.classList.add('open'); hamburger.setAttribute('aria-expanded','true'); drawer.setAttribute('aria-hidden','false'); }
-      function closeDrawer(){ overlay.classList.remove('open'); drawer.classList.remove('open'); hamburger.setAttribute('aria-expanded','false'); drawer.setAttribute('aria-hidden','true'); }
-      hamburger.addEventListener('click', openDrawer); closeBtn.addEventListener('click', closeDrawer); overlay.addEventListener('click', closeDrawer);
-      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeDrawer(); });
-      const logoutBtn2 = qs('#logoutBtn2'); if (logoutBtn2) logoutBtn2.addEventListener('click', async ()=>{ await supabase.auth.signOut(); location.href='auth.html'; });
+      // Nav
+      qs('#logoutBtn').addEventListener('click', async ()=>{ await supabase.auth.signOut(); location.href='auth.html'; });
+      const hamburger=qs('#hamburger'), overlay=qs('#mobileOverlay'), drawer=qs('#mobileDrawer'), closeBtn=qs('#closeDrawer');
+      function openDrawer(){ overlay.classList.add('open'); drawer.classList.add('open'); }
+      function closeDrawer(){ overlay.classList.remove('open'); drawer.classList.remove('open'); }
+      hamburger.addEventListener('click',openDrawer); closeBtn.addEventListener('click',closeDrawer); overlay.addEventListener('click',closeDrawer);
+      const logoutBtn2=qs('#logoutBtn2'); if (logoutBtn2) logoutBtn2.addEventListener('click', async ()=>{ await supabase.auth.signOut(); location.href='auth.html'; });
 
-      // Toggle edit & form
+      // Edit
       qs('#editToggle').addEventListener('click', toggleEdit);
       qs('#reloadBtn').addEventListener('click', loadProfile);
       qs('#saveBtn').addEventListener('click', onSave);
       qs('#removeAvatarBtn').addEventListener('click', onRemoveAvatar);
-      qs('#avatarFile').addEventListener('change', (e)=>{ const f=e.target.files?.[0]; if(!f) return; qs('#avatarImg').src = URL.createObjectURL(f); });
+      qs('#avatarFile').addEventListener('change', e=>{ const f=e.target.files?.[0]; if(f) qs('#avatarImg').src=URL.createObjectURL(f); });
 
-      // Upload foto bacheca
+      // Upload bacheca
       qs('#fabAdd').addEventListener('click', ()=> qs('#photoPicker').click());
       qs('#photoPicker').addEventListener('change', openUploadModal);
       qs('#cancelUpload').addEventListener('click', closeUploadModal);
       qs('#startUpload').addEventListener('click', startUpload);
 
-      // Viewer listeners
+      // Viewer
       qs('#closeViewer').addEventListener('click', closeViewer);
       qs('#likeBtn').addEventListener('click', toggleLike);
       qs('#sendComment').addEventListener('click', sendComment);
@@ -308,27 +303,19 @@
     })();
 
     function toggleEdit(){
-      const p = qs('#editPanel');
-      p.style.display = p.style.display === 'block' ? 'none' : 'block';
+      const p=qs('#editPanel'); p.style.display = p.style.display==='block'?'none':'block';
     }
 
-    async function ensureProfileRow() {
-      const { data, error } = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle();
-      if (error) { showErr("Errore profilo: "+error.message); return; }
-      if (!data) {
-        const { error: insErr } = await supabase.from('profiles').insert([{ id: user.id }]);
-        if (insErr) showErr("Errore creazione profilo: "+insErr.message);
-      }
+    async function ensureProfileRow(){
+      const { data } = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle();
+      if (!data){ await supabase.from('profiles').insert([{ id:user.id }]); }
     }
 
-    async function loadProfile() {
+    async function loadProfile(){
       clearErr();
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('display_name, location, age, bio, avatar_url')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (error) { showErr("Errore caricamento profilo: "+error.message); return; }
+      const { data, error } = await supabase.from('profiles')
+        .select('display_name, location, age, bio, avatar_url').eq('id', user.id).maybeSingle();
+      if (error){ showErr("Errore caricamento profilo: "+error.message); return; }
 
       const dn = data?.display_name || "Utente";
       const bio = data?.bio || "";
@@ -345,90 +332,69 @@
         : 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140"><rect width="140" height="140" fill="#0f0f12"/><circle cx="70" cy="56" r="30" fill="#1e1e24"/><rect x="24" y="92" width="92" height="30" rx="15" fill="#1e1e24"/></svg>`);
       qs('#avatarImg').src = avatarUrl;
 
-      // precompila form
       qs('#display_name').value = data?.display_name ?? '';
       qs('#location').value     = data?.location ?? '';
       qs('#age').value          = data?.age ?? '';
       qs('#bio').value          = data?.bio ?? '';
     }
 
-    // === SALVA (avatar + dati) e CHIUDE pannello ===
     async function onSave(){
       clearErr();
-      const saveBtn = qs('#saveBtn'); saveBtn.disabled = true;
-      const oldTxt = saveBtn.textContent; saveBtn.textContent = 'Salvo…';
-      try {
-        // 1) Upload avatar se presente
-        let avatarUrlToSave = null;
-        const file = qs('#avatarFile').files?.[0];
-        if (file) {
-          const safe = file.name.replace(/\s+/g,'_');
-          const path = `${user.id}/${Date.now()}_${safe}`;
-          const up = await supabase.storage.from('avatars').upload(path, file, { upsert:false });
+      const btn=qs('#saveBtn'); const old=btn.textContent; btn.disabled=true; btn.textContent='Salvo…';
+      try{
+        let avatarUrlToSave=null;
+        const f=qs('#avatarFile').files?.[0];
+        if (f){
+          const safe=f.name.replace(/\s+/g,'_');
+          const path=`${user.id}/${Date.now()}_${safe}`;
+          const up=await supabase.storage.from('avatars').upload(path, f, { upsert:false });
           if (up.error) throw up.error;
-          const pub = supabase.storage.from('avatars').getPublicUrl(path);
-          avatarUrlToSave = pub.data?.publicUrl || null;
+          const pub=supabase.storage.from('avatars').getPublicUrl(path);
+          avatarUrlToSave=pub.data?.publicUrl||null;
         }
-
-        // 2) Upsert profilo
-        const payload = {
-          id: user.id,
+        const payload={
+          id:user.id,
           display_name: qs('#display_name').value.trim() || null,
           location: qs('#location').value.trim() || null,
           age: qs('#age').value ? Number(qs('#age').value) : null,
           bio: qs('#bio').value.trim() || null
         };
-        if (avatarUrlToSave) payload.avatar_url = avatarUrlToSave;
+        if (avatarUrlToSave) payload.avatar_url=avatarUrlToSave;
 
         const { error } = await supabase.from('profiles').upsert(payload, { onConflict:'id' });
         if (error) throw error;
 
-        // 3) UI update
-        if (avatarUrlToSave) {
-          qs('#avatarImg').src = avatarUrlToSave + `?t=${Date.now()}`;
-          qs('#avatarFile').value = '';
-        }
-        toggleEdit();               // chiude pannello
+        if (avatarUrlToSave){ qs('#avatarImg').src = avatarUrlToSave + `?t=${Date.now()}`; qs('#avatarFile').value=''; }
+        toggleEdit();
         toast('Profilo aggiornato');
-        await loadProfile();        // rilegge dal DB
-      } catch (err) {
-        showErr("Errore salvataggio: " + (err?.message || err));
-      } finally {
-        saveBtn.textContent = oldTxt;
-        saveBtn.disabled = false;
-      }
+        await loadProfile();
+      }catch(e){ showErr("Errore salvataggio: "+(e?.message||e)); }
+      finally{ btn.disabled=false; btn.textContent=old; }
     }
 
     async function onRemoveAvatar(){
-      clearErr();
       const { error } = await supabase.from('profiles').update({ avatar_url:null }).eq('id', user.id);
       if (error){ showErr("Rimozione avatar: "+error.message); return; }
       await loadProfile(); toast('Avatar rimosso');
     }
 
-    // ======= GALLERIA =======
     async function loadGallery(){
-      const grid = qs('#gallery'); const empty = qs('#empty');
-      grid.innerHTML = ''; empty.style.display='none';
-
-      const { data, error } = await supabase
-        .from('user_photos')
+      const grid=qs('#gallery'); const empty=qs('#empty');
+      grid.innerHTML=''; empty.style.display='none';
+      const { data, error } = await supabase.from('user_photos')
         .select('id, user_id, image_path, caption, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending:false });
+        .eq('user_id', user.id).order('created_at',{ascending:false});
       if (error){ showErr("Lettura galleria: "+error.message); return; }
-      if (!data || !data.length){ empty.style.display='block'; return; }
+      if (!data?.length){ empty.style.display='block'; return; }
 
       for (const ph of data){
-        const tile = document.createElement('div'); tile.className='tile';
-        tile.innerHTML = `
+        const tile=document.createElement('div'); tile.className='tile';
+        tile.innerHTML=`
           <img src="${ph.image_path}" alt="photo"/>
           <button class="btn danger del" style="position:absolute;top:6px;right:6px">Elimina</button>
           ${ph.caption ? `<div class="cap">${ph.caption}</div>` : ``}
         `;
-        // apri viewer cliccando sull'immagine
         tile.querySelector('img').addEventListener('click', ()=> openViewer(ph));
-        // elimina dalla griglia
         tile.querySelector('.del').addEventListener('click', (e)=>{ e.stopPropagation(); deletePhoto(ph.id, ph.image_path, tile); });
         grid.appendChild(tile);
       }
@@ -436,64 +402,55 @@
 
     // ======= VIEWER =======
     function openViewer(photo){
-      currentPhoto = photo;
-      qs('#viewImg').src = photo.image_path;
-      qs('#viewCaption').textContent = photo.caption || '';
+      currentPhoto=photo;
+      qs('#viewImg').src=photo.image_path;
+      qs('#viewCaption').textContent=photo.caption||'';
       qs('#viewOwner').textContent = qs('#display_name_txt').textContent || 'Profilo';
-      qs('#deletePhotoBtn').style.display = (photo.user_id === user.id) ? 'inline-flex' : 'none';
-      qs('#viewer').style.display = 'block';
+      qs('#deletePhotoBtn').style.display = (photo.user_id===user.id)?'inline-flex':'none';
+      qs('#viewer').style.display='block';
       refreshViewer();
     }
     function closeViewer(){
-      currentPhoto = null;
-      qs('#viewer').style.display = 'none';
-      qs('#commentsList').innerHTML = '';
-      qs('#commentInput').value = '';
+      currentPhoto=null;
+      qs('#viewer').style.display='none';
+      qs('#commentsList').innerHTML='';
+      qs('#commentInput').value='';
     }
 
     async function refreshViewer(){
       if (!currentPhoto) return;
-      const pid = currentPhoto.id;
+      const pid=currentPhoto.id;
 
-      // conteggio like
-      const likeCountQ = await supabase.from('photo_likes').select('id', { head:true, count:'exact' }).eq('photo_id', pid);
+      const likeCountQ = await supabase.from('photo_likes').select('id',{ head:true, count:'exact' }).eq('photo_id', pid);
       const countLikes = likeCountQ?.count ?? 0;
       qs('#likeCount').textContent = `${countLikes} like`;
 
-      // liked by me?
       const likedQ = await supabase.from('photo_likes').select('id').eq('photo_id', pid).eq('user_id', user.id).maybeSingle();
       const liked = !!likedQ.data;
-      const heart = qs('#likeBtn');
-      heart.classList.toggle('liked', liked);
-      heart.textContent = liked ? '♥' : '♡';
+      const heart=qs('#likeBtn'); heart.classList.toggle('liked', liked); heart.textContent= liked?'♥':'♡';
 
-      // commenti (con profili)
-      const { data: comments, error } = await supabase
-        .from('photo_comments')
-        .select('id, body, created_at, user_id')
-        .eq('photo_id', pid)
-        .order('created_at', { ascending:true });
+      const { data: comments, error } = await supabase.from('photo_comments')
+        .select('id, body, created_at, user_id').eq('photo_id', pid).order('created_at',{ascending:true});
       if (error){ showErr("Lettura commenti: "+error.message); return; }
 
-      // prendi display_name/avatar degli autori (batch)
-      const ids = [...new Set(comments.map(c=>c.user_id))];
-      let profMap = {};
+      const ids=[...new Set(comments.map(c=>c.user_id))];
+      let profMap={};
       if (ids.length){
         const { data: profs } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', ids);
-        (profs||[]).forEach(p=> profMap[p.id] = p);
+        (profs||[]).forEach(p=> profMap[p.id]=p);
       }
 
-      const list = qs('#commentsList'); list.innerHTML='';
+      const list=qs('#commentsList'); list.innerHTML='';
       comments.forEach(c=>{
-        const p = profMap[c.user_id] || {};
-        const name = p.display_name || 'Utente';
-        const av = p.avatar_url || '';
-        const wrap = document.createElement('div'); wrap.className='comment';
-        wrap.innerHTML = `
+        const p=profMap[c.user_id]||{};
+        const name=p.display_name||'Utente';
+        const av=p.avatar_url||'';
+        const wrap=document.createElement('div'); wrap.className='comment';
+        wrap.innerHTML=`
           <div class="by">
-            ${av ? `<img src="${av}" style="width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px"/>` : ``}
+            ${av?`<img src="${av}" style="width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px"/>`:``}
             <strong>${name}</strong> · ${new Date(c.created_at).toLocaleString()}
-            ${c.user_id===user.id ? `<button data-id="${c.id}" class="btn danger" style="float:right;padding:4px 8px;font-size:12px">Elimina</button>` : ``}
+            ${c.user_id===user.id?`<button data-id="${c.id}" class="btn danger" style="float:right;padding:4px 8px;font-size:12px">Elimina</button>`:``}
           </div>
           <div class="text">${escapeHtml(c.body)}</div>
         `;
@@ -506,26 +463,19 @@
 
     async function toggleLike(){
       if (!currentPhoto) return;
-      const pid = currentPhoto.id;
-      // hai già messo like?
+      const pid=currentPhoto.id;
       const { data: existing } = await supabase.from('photo_likes').select('id').eq('photo_id', pid).eq('user_id', user.id).maybeSingle();
-      if (existing){
-        await supabase.from('photo_likes').delete().eq('id', existing.id);
-      }else{
-        await supabase.from('photo_likes').insert([{ photo_id: pid, user_id: user.id }]);
-      }
+      if (existing){ await supabase.from('photo_likes').delete().eq('id', existing.id); }
+      else{ await supabase.from('photo_likes').insert([{ photo_id: pid, user_id: user.id }]); }
       refreshViewer();
     }
 
     async function sendComment(){
       if (!currentPhoto) return;
-      const input = qs('#commentInput');
-      const body = (input.value||'').trim();
-      if (!body) return;
+      const input=qs('#commentInput'); const body=(input.value||'').trim(); if (!body) return;
       const { error } = await supabase.from('photo_comments').insert([{ photo_id: currentPhoto.id, user_id: user.id, body }]);
       if (error){ showErr("Invio commento: "+error.message); return; }
-      input.value = '';
-      refreshViewer();
+      input.value=''; refreshViewer();
     }
 
     async function deleteComment(cid){
@@ -537,84 +487,53 @@
     qs('#deletePhotoBtn').addEventListener('click', async ()=>{
       if (!currentPhoto) return;
       await deletePhoto(currentPhoto.id, currentPhoto.image_path);
-      closeViewer();
-      await loadGallery();
+      closeViewer(); await loadGallery();
     });
 
     function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m])); }
 
-    // ======= MODALE UPLOAD (caption + progress) =======
+    // Upload modal
     function openUploadModal(e){
-      chosenFiles = [];
-      const files = e.target.files;
-      if (!files || !files.length) return;
-
-      const list = qs('#uploadList'); list.innerHTML = '';
+      chosenFiles=[]; const files=e.target.files; if(!files?.length) return;
+      const list=qs('#uploadList'); list.innerHTML='';
       for (const f of files){
-        const url = URL.createObjectURL(f);
-        const row = document.createElement('div'); row.className='item';
-        row.innerHTML = `
-          <img src="${url}" alt="preview"/>
-          <div>
-            <input placeholder="Didascalia (facoltativa)"/>
-            <div class="bar" style="margin-top:8px"><span></span></div>
-          </div>`;
+        const url=URL.createObjectURL(f);
+        const row=document.createElement('div'); row.className='item';
+        row.innerHTML=`<img src="${url}" alt="preview"/><div><input placeholder="Didascalia (facoltativa)"/><div class="bar" style="margin-top:8px"><span></span></div></div>`;
         list.appendChild(row);
-        chosenFiles.push({
-          file: f,
-          captionInput: row.querySelector('input'),
-          progressEl: row.querySelector('.bar span')
-        });
+        chosenFiles.push({ file:f, captionInput:row.querySelector('input'), progressEl:row.querySelector('.bar span') });
       }
-      qs('#overlay').style.display = 'flex';
+      qs('#overlay').style.display='flex';
     }
-    function closeUploadModal(){
-      qs('#overlay').style.display = 'none';
-      qs('#photoPicker').value = '';
-      chosenFiles = [];
-    }
+    function closeUploadModal(){ qs('#overlay').style.display='none'; qs('#photoPicker').value=''; chosenFiles=[]; }
 
     async function startUpload(){
       clearErr();
-      if (!chosenFiles.length) { closeUploadModal(); return; }
+      if (!chosenFiles.length){ closeUploadModal(); return; }
       for (const item of chosenFiles){
-        item.progressEl.style.width = '25%';
-        const f = item.file;
-        const safe = f.name.replace(/\s+/g,'_');
-        const path = `${user.id}/${Date.now()}_${safe}`;
-
+        item.progressEl.style.width='25%';
+        const f=item.file; const safe=f.name.replace(/\s+/g,'_'); const path=`${user.id}/${Date.now()}_${safe}`;
         const { error: upErr } = await supabase.storage.from('user-media').upload(path, f, { upsert:false });
         if (upErr){ item.progressEl.style.width='0%'; showErr("Upload foto: "+upErr.message); return; }
-
-        item.progressEl.style.width = '60%';
-        const { data: pub } = supabase.storage.from('user-media').getPublicUrl(path);
-        const publicUrl = pub?.publicUrl;
-
-        const caption = (item.captionInput.value || '').trim() || null;
-        const { error: dbErr } = await supabase.from('user_photos').insert([{ user_id: user.id, image_path: publicUrl, caption }]);
+        item.progressEl.style.width='60%';
+        const { data: pub } = supabase.storage.from('user-media').getPublicUrl(path); const publicUrl = pub?.publicUrl;
+        const caption=(item.captionInput.value||'').trim()||null;
+        const { error: dbErr } = await supabase.from('user_photos').insert([{ user_id:user.id, image_path:publicUrl, caption }]);
         if (dbErr){ item.progressEl.style.width='0%'; showErr("Salvataggio DB foto: "+dbErr.message); return; }
-
-        item.progressEl.style.width = '100%';
+        item.progressEl.style.width='100%';
       }
-      toast('Foto pubblicate');
-      closeUploadModal();
-      await loadGallery();
+      toast('Foto pubblicate'); closeUploadModal(); await loadGallery();
     }
 
     async function deletePhoto(photoId, imageUrl, tileEl){
       try{
-        const u = new URL(imageUrl);
-        const parts = u.pathname.split('/');
-        const idx = parts.indexOf('user-media');
-        const rel = parts.slice(idx+1).join('/'); // <uid>/file.jpg
+        const u=new URL(imageUrl); const parts=u.pathname.split('/'); const idx=parts.indexOf('user-media'); const rel=parts.slice(idx+1).join('/');
         const { error: del1 } = await supabase.storage.from('user-media').remove([ rel ]);
         if (del1) console.warn('Delete storage:', del1);
-      }catch(e){ console.warn('Parse URL storage fallita'); }
-
+      }catch(e){}
       const { error: del2 } = await supabase.from('user_photos').delete().eq('id', photoId);
       if (del2){ showErr("Eliminazione record: "+del2.message); return; }
-      if (tileEl) tileEl.remove();
-      toast('Foto eliminata');
+      if (tileEl) tileEl.remove(); toast('Foto eliminata');
     }
   </script>
 </body>
