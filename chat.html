@@ -10,11 +10,14 @@
     body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea;}
     .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
     .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
+    .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
     #log{height:58vh;overflow:auto}
   </style>
+  <!-- Google Maps (serve la geometry per il check) -->
   <script async
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=geometry&callback=()=>{}">
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=geometry&callback=initChat">
   </script>
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -49,36 +52,58 @@
   const roomId = params.get('room');
   if (!roomId){ location.replace('index.html'); }
 
-  let room=null, canSend=true;
+  let room=null, canSend=false; // default: NON invio finché non verifico
 
-  (async ()=>{
+  // Avvio dopo che Google Maps è pronto
+  window.initChat = async function(){
     // auth link
     const l = document.getElementById('authLink');
     const { data:{session} } = await sb.auth.getSession();
     if (session){ l.textContent='Esci'; l.onclick=async(e)=>{e.preventDefault(); await sb.auth.signOut(); location.href='index.html'} }
 
-    // room
+    // carico stanza
     const { data, error } = await sb.from('rooms').select('*').eq('id',roomId).single();
     if (error || !data){ alert('Stanza non trovata'); location.replace('index.html'); return; }
     room = data;
     document.getElementById('roomTitle').textContent = room.name || 'Chat';
 
-    // posizione => se fuori perimetro, disabilito invio (UX)
+    // Verifica geofence: se fuori, TORNA al join con messaggio
     navigator.geolocation.getCurrentPosition(pos=>{
       const me = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
       const path = (room.polygon?.coordinates?.[0]||[]).map(([lng,lat])=>({lat,lng}));
       const poly = new google.maps.Polygon({paths:path});
       const inside = google.maps.geometry.poly.containsLocation(me, poly);
-      if (!inside){
-        canSend=false;
-        document.getElementById('geoWarn').classList.remove('hidden');
-        document.getElementById('geoWarn').textContent='Sei fuori dal perimetro: puoi leggere ma non inviare.';
-      }
-    }, _=>{});
 
-    loadMessages();
+      if (!inside){
+        // ritorno a join con reason
+        location.replace(`join.html?room=${encodeURIComponent(roomId)}&reason=outside`);
+        return;
+      }
+
+      // dentro → abilitato invio
+      canSend = true;
+      bootChat();
+    }, _=>{
+      document.getElementById('geoWarn').classList.remove('hidden');
+      document.getElementById('geoWarn').textContent='Posizione non disponibile: ritorno al check-in.';
+      setTimeout(()=>location.replace(`join.html?room=${encodeURIComponent(roomId)}&reason=nolocation`), 1200);
+    }, { enableHighAccuracy:true, maximumAge:0, timeout:10000 });
+  };
+
+  async function bootChat(){
+    await loadMessages();
     subscribeRealtime();
-  })();
+
+    document.getElementById('formMsg').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      if (!canSend){ alert('Non puoi inviare messaggi fuori perimetro.'); return; }
+      const val = document.getElementById('msg').value.trim();
+      if (!val) return;
+      document.getElementById('msg').value='';
+      const { error } = await sb.from('messages').insert({ room_id:roomId, body:val });
+      if (error){ console.error(error); alert('Invio non riuscito'); }
+    });
+  }
 
   async function loadMessages(){
     const { data } = await sb.from('messages').select('id,body,created_at,user_id')
@@ -87,14 +112,6 @@
     log.innerHTML='';
     (data||[]).forEach(addMsg);
     log.scrollTop = log.scrollHeight;
-  }
-
-  function addMsg(m){
-    const row = document.createElement('div');
-    row.className='py-1';
-    const t = new Date(m.created_at).toLocaleTimeString();
-    row.innerHTML = `<span class="opacity-60 text-xs">${t}</span> <span class="opacity-80">${escapeHtml(m.body)}</span>`;
-    document.getElementById('log').appendChild(row);
   }
 
   function subscribeRealtime(){
@@ -106,16 +123,13 @@
       }).subscribe();
   }
 
-  document.getElementById('formMsg').addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    if (!canSend){ alert('Sei fuori perimetro.'); return;}
-    const val = document.getElementById('msg').value.trim();
-    if (!val) return;
-    document.getElementById('msg').value='';
-    const { error } = await sb.from('messages').insert({ room_id:roomId, body:val });
-    if (error){ console.error(error); alert('Invio non riuscito'); }
-  });
-
+  function addMsg(m){
+    const row = document.createElement('div');
+    row.className='py-1';
+    const t = new Date(m.created_at).toLocaleTimeString();
+    row.innerHTML = `<span class="opacity-60 text-xs">${t}</span> <span class="opacity-80">${escapeHtml(m.body)}</span>`;
+    document.getElementById('log').appendChild(row);
+  }
   function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 </script>
 </body>
