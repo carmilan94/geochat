@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GeoChat • Accedi / Registrati</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="data:,">
+  <style>
+    body { min-height: 100vh; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 flex items-center justify-center p-4">
+  <div class="w-full max-w-md">
+    <div class="bg-white rounded-2xl shadow p-6">
+      <h1 class="text-2xl font-bold text-center">GeoChat</h1>
+      <p class="text-center text-slate-600 mt-1">Accedi o crea un account</p>
+
+      <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
+        <button id="tabLogin" class="py-2 rounded-lg border bg-slate-900 text-white">Accedi</button>
+        <button id="tabSignup" class="py-2 rounded-lg border">Registrati</button>
+      </div>
+
+      <!-- LOGIN -->
+      <form id="formLogin" class="mt-4 space-y-3">
+        <div>
+          <label class="text-sm">Email</label>
+          <input id="lEmail" type="email" required class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="es. mario@esempio.it" />
+        </div>
+        <div>
+          <label class="text-sm">Password</label>
+          <input id="lPassword" type="password" required minlength="6" class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="••••••" />
+        </div>
+        <button id="btnLogin" type="submit" class="w-full py-2 rounded-lg bg-slate-900 text-white">Accedi</button>
+      </form>
+
+      <!-- SIGNUP -->
+      <form id="formSignup" class="mt-4 space-y-3 hidden">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-sm">Nome</label>
+            <input id="sFirst" required class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="Mario" />
+          </div>
+          <div>
+            <label class="text-sm">Cognome</label>
+            <input id="sLast" required class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="Rossi" />
+          </div>
+        </div>
+        <div>
+          <label class="text-sm">Email</label>
+          <input id="sEmail" type="email" required class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="mario@esempio.it" />
+        </div>
+        <div>
+          <label class="text-sm">Password (min 6 caratteri)</label>
+          <input id="sPassword" type="password" required minlength="6" class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="••••••" />
+        </div>
+        <div>
+          <label class="text-sm">Conferma password</label>
+          <input id="sPassword2" type="password" required minlength="6" class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="••••••" />
+        </div>
+        <button id="btnSignup" type="submit" class="w-full py-2 rounded-lg bg-emerald-600 text-white">Crea account</button>
+      </form>
+
+      <p id="msg" class="mt-4 text-sm text-center text-slate-600"></p>
+      <p class="mt-2 text-center">
+        <a href="/" class="text-sm text-slate-700 underline">Torna alla Home</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- Supabase UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // Config TUO progetto
+    const SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
+    const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    const tabLogin  = document.getElementById('tabLogin');
+    const tabSignup = document.getElementById('tabSignup');
+    const formLogin  = document.getElementById('formLogin');
+    const formSignup = document.getElementById('formSignup');
+    const msg = document.getElementById('msg');
+
+    function setMsg(t){ msg.textContent = t || ""; }
+
+    // Tab switch
+    tabLogin.onclick = () => {
+      tabLogin.classList.add('bg-slate-900','text-white');
+      tabSignup.classList.remove('bg-slate-900','text-white');
+      formLogin.classList.remove('hidden');
+      formSignup.classList.add('hidden');
+      setMsg('');
+    };
+    tabSignup.onclick = () => {
+      tabSignup.classList.add('bg-slate-900','text-white');
+      tabLogin.classList.remove('bg-slate-900','text-white');
+      formSignup.classList.remove('hidden');
+      formLogin.classList.add('hidden');
+      setMsg('');
+    };
+
+    // LOGIN
+    formLogin.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      setMsg('Accesso in corso…');
+      const email = document.getElementById('lEmail').value.trim();
+      const password = document.getElementById('lPassword').value;
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) { setMsg(error.message); return; }
+      // opzionale: aggiorna display_name se mancante
+      await ensureProfileDisplayName();
+      setMsg('Accesso riuscito! Ti reindirizzo…');
+      setTimeout(()=> location.href='/', 600);
+    });
+
+    // SIGNUP
+    formSignup.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      setMsg('');
+      const first = document.getElementById('sFirst').value.trim();
+      const last  = document.getElementById('sLast').value.trim();
+      const email = document.getElementById('sEmail').value.trim();
+      const pass  = document.getElementById('sPassword').value;
+      const pass2 = document.getElementById('sPassword2').value;
+
+      if (!first || !last) return setMsg('Inserisci nome e cognome.');
+      if (pass !== pass2)   return setMsg('Le password non coincidono.');
+
+      setMsg('Registrazione in corso…');
+      // Salviamo nome/cognome nei metadata dell'utente
+      const { data, error } = await supabase.auth.signUp({
+        email, password: pass,
+        options: { data: { first_name: first, last_name: last } }
+      });
+      if (error) { setMsg(error.message); return; }
+
+      // Se la conferma email è abilitata, Supabase invia una mail
+      // Aggiorneremo il profilo (display_name) al primo login dopo conferma
+      setMsg('Registrazione effettuata! Controlla la tua email per confermare e poi accedi.');
+
+      // Se l'utente è già loggato (es. conferma disabilitata), aggiorna profilo ora
+      await ensureProfileDisplayName(first, last);
+    });
+
+    // Aggiorna/crea profilo con display_name = "Nome Cognome"
+    async function ensureProfileDisplayName(first, last){
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const fn = first ?? (user.user_metadata && user.user_metadata.first_name) || '';
+      const ln = last  ?? (user.user_metadata && user.user_metadata.last_name) || '';
+      const display = (fn + ' ' + ln).trim() || (user.email || '');
+      // upsert sul tuo profilo (RLS consente update a se stessi)
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        email: user.email,
+        display_name: display
+      });
+    }
+  </script>
+</body>
+</html>
