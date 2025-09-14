@@ -1,300 +1,124 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GeoChat • Chat vicine</title>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GeoChat • Chat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root{--bg:#0b0b0c;--card:#141417;--fg:#f6f6f7;--muted:#a2a2ab;--brand:#ff8a00;--brand2:#ffb347;--border:#232328;--danger:#ff6b6b}
-    *{box-sizing:border-box} body{margin:0;background:#0b0b0c;color:var(--fg);font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
-    header{position:sticky;top:0;background:#0b0b0cdd;backdrop-filter:blur(6px);border-bottom:1px solid var(--border);z-index:60}
-    .wrap{max-width:960px;margin:0 auto;padding:16px}
-    .nav{display:flex;align-items:center;justify-content:space-between}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .btn{padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:#16161a;color:var(--fg);cursor:pointer}
-    .btn.primary{background:linear-gradient(90deg,var(--brand),var(--brand2));color:#111;font-weight:700;border:none}
-    .btn.ghost{background:#0f0f12}
-    .btn.danger{background:#1a1112;border-color:#442325;color:#ffb3b3}
-    .badge{font-size:12px;padding:6px 10px;border-radius:999px;background:#101014;border:1px solid var(--border)}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:18px}
-    .muted{color:var(--muted)}
-    .input{background:#0f0f12;border:1px solid var(--border);color:#fff;border-radius:12px;padding:12px}
-    .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-    .empty{border:1px dashed var(--border);padding:18px;border-radius:16px;text-align:center;color:var(--muted)}
-    .list{display:flex;flex-direction:column;gap:10px;margin-top:14px}
-    .room{display:flex;gap:12px;align-items:center;background:#141417;border:1px solid var(--border);border-radius:16px;padding:12px}
-    .room .dot{width:42px;height:42px;border-radius:12px;background:#0e0e12;border:1px solid #222;display:grid;place-items:center;font-weight:700}
-    .room .meta{display:flex;flex-direction:column;gap:4px;min-width:0}
-    .room .name{font-weight:700}
-    .room .line{display:flex;gap:10px;flex-wrap:wrap}
-    .chip{font-size:12px;padding:6px 10px;border-radius:999px;background:#101014;border:1px solid var(--border)}
-    .right{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
-    .toast{position:fixed;right:18px;bottom:18px;background:#141417;border:1px solid var(--border);padding:12px 14px;border-radius:12px;display:none;z-index:80}
-    .error{border:1px solid #402225;background:#1b0f11;color:#ffc6c6;padding:12px;border-radius:12px;margin-top:10px;display:none;white-space:pre-wrap}
-    .hamburger{display:none;gap:5px;flex-direction:column;align-items:center;justify-content:center;
-      padding:10px;border-radius:12px;border:1px solid var(--border);background:#16161a;cursor:pointer}
-    .hamburger span{width:22px;height:2px;background:var(--fg);display:block}
-    .nav-right{display:flex}
-    @media(max-width:900px){.nav-right{display:none}.hamburger{display:flex}}
-    .mobile-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:70}
-    .mobile-overlay.open{display:block}
-    .mobile-drawer{position:fixed;top:0;right:0;height:100vh;width:min(320px,85vw);
-      background:#141417;border-left:1px solid var(--border);
-      transform:translateX(100%);transition:transform .22s ease;
-      display:flex;flex-direction:column;gap:12px;padding:16px;z-index:71}
-    .mobile-drawer.open{transform:translateX(0)}
-    .drawer-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-    .drawer-nav{display:flex;flex-direction:column;gap:8px}
-    .drawer-nav .mitem{display:block;text-decoration:none;color:var(--fg);
-      background:#16161a;border:1px solid var(--border);border-radius:12px;padding:12px 14px;text-align:left}
-    .drawer-nav .mitem.logout{background:#1a1112;border-color:#442325;color:#ffb3b3}
+    :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233}
+    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea}
+    .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
+    .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
+    #log{height:58vh;overflow:auto}
   </style>
+  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=geometry&callback=initChat"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <header>
-    <div class="wrap nav">
-      <div class="row">
-        <strong>GeoChat</strong>
-        <span id="meEmail" class="badge">…</span>
-      </div>
-      <div class="row nav-right">
-        <a class="btn" href="index.html">Home</a>
-        <a class="btn" href="join.html">Entra</a>
-        <a class="btn" href="chat.html">Chat</a>
-        <a class="btn" href="settings.html">Impostazioni</a>
-        <a class="btn" href="profile.html">Profilo</a>
-        <button id="logoutBtn" class="btn">Logout</button>
-      </div>
-      <button id="hamburger" class="hamburger" aria-label="Apri menu" aria-controls="mobileDrawer" aria-expanded="false">
-        <span></span><span></span><span></span>
-      </button>
-    </div>
-  </header>
+<header class="w-full py-4 px-5 flex items-center justify-between">
+  <div class="flex items-center gap-2">
+    <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-bold text-black">GC</div>
+    <div class="font-extrabold text-xl" id="roomTitle">GeoChat</div>
+  </div>
+  <nav class="flex items-center gap-3 text-sm">
+    <a href="index.html" class="chip px-3 py-1.5 rounded-lg">Home</a>
+    <a id="authLink" href="auth.html" class="chip px-3 py-1.5 rounded-lg">Entra</a>
+  </nav>
+</header>
 
-  <div id="mobileOverlay" class="mobile-overlay" aria-hidden="true"></div>
-  <aside id="mobileDrawer" class="mobile-drawer" aria-hidden="true">
-    <div class="drawer-head">
-      <span style="font-weight:700">Menu</span>
-      <button id="closeDrawer" class="btn">✕</button>
-    </div>
-    <nav class="drawer-nav">
-      <a class="mitem" href="index.html">Home</a>
-      <a class="mitem" href="join.html">Entra</a>
-      <a class="mitem" href="chat.html">Chat</a>
-      <a class="mitem" href="settings.html">Impostazioni</a>
-      <a class="mitem" href="profile.html">Profilo</a>
-      <button class="mitem logout" id="logoutBtn2" type="button">Logout</button>
-    </nav>
-  </aside>
+<main class="max-w-3xl mx-auto px-4 pb-24">
+  <div id="geoWarn" class="glass rounded-xl p-3 mb-3 text-sm hidden"></div>
+  <div id="log" class="glass rounded-xl p-4"></div>
+  <form id="formMsg" class="mt-3 flex gap-2">
+    <input id="msg" class="flex-1 chip rounded-lg px-3 py-2" placeholder="Scrivi un messaggio…" />
+    <button class="btn-main rounded-lg px-4">Invia</button>
+  </form>
+</main>
 
-  <main class="wrap">
-    <h2 style="margin:10px 0 0">Chat vicine</h2>
-    <p class="muted" style="margin:6px 0 14px">Attiva la posizione o filtra per città per vedere le chat.</p>
+<script>
+  const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    <div class="card">
-      <div class="toolbar">
-        <button id="useLocation" class="btn primary">📍 Usa la mia posizione</button>
-        <button id="disableLocation" class="btn ghost">Disattiva posizione</button>
-        <div style="flex:1"></div>
-        <input id="cityInput" class="input" placeholder="Cerca città… (es. Napoli)" style="min-width:220px"/>
-        <button id="applyFilter" class="btn">Filtra</button>
-        <button id="clearFilter" class="btn ghost">Rimuovi filtro</button>
-      </div>
+  const params = new URLSearchParams(location.search);
+  const roomId = params.get('room');
+  if (!roomId){ location.replace('index.html'); }
 
-      <div id="hint" class="empty" style="margin-top:14px">
-        Nessuna chat mostrata. Clicca <b>“Usa la mia posizione”</b> oppure filtra per città.
-      </div>
+  let room=null, canSend=false;
 
-      <div id="list" class="list" style="display:none"></div>
-      <div id="noResults" class="empty" style="display:none">Nessuna chat trovata con i criteri selezionati.</div>
-
-      <div id="errBox" class="error"></div>
-    </div>
-  </main>
-
-  <div id="toast" class="toast">OK</div>
-
-  <script>
-    // === Supabase init ===
-    const SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // UI helpers
-    const qs=(s,r=document)=>r.querySelector(s);
-    const toast=(m,ms=1600)=>{const t=qs('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',ms);};
-    const showErr=(m)=>{const b=qs('#errBox');b.textContent=m;b.style.display='block';};
-    const clearErr=()=>{const b=qs('#errBox');b.textContent='';b.style.display='none';};
-
-    let me=null;
-    let myPos=null;      // {lat,lng}
-    let cityFilter='';   // stringa filtro città
-    let allRooms=[];     // cache ultimo fetch
-
-    // ===== NAV + session =====
-    (async () => {
-      const { data:{session} } = await supabase.auth.getSession();
-      if (!session){ location.href='auth.html?next=chat.html'; return; }
-      me=session.user;
-      qs('#meEmail').textContent = me.email;
-
-      // header actions
-      qs('#logoutBtn').addEventListener('click', async ()=>{ await supabase.auth.signOut(); location.href='auth.html'; });
-      const hamburger=qs('#hamburger'), overlay=qs('#mobileOverlay'), drawer=qs('#mobileDrawer'), closeBtn=qs('#closeDrawer');
-      function openDrawer(){ overlay.classList.add('open'); drawer.classList.add('open'); }
-      function closeDrawer(){ overlay.classList.remove('open'); drawer.classList.remove('open'); }
-      hamburger.addEventListener('click',openDrawer); closeBtn.addEventListener('click',closeDrawer); overlay.addEventListener('click',closeDrawer);
-      const logoutBtn2=qs('#logoutBtn2'); if (logoutBtn2) logoutBtn2.addEventListener('click', async ()=>{ await supabase.auth.signOut(); location.href='auth.html'; });
-
-      // controls
-      qs('#useLocation').addEventListener('click', useMyLocation);
-      qs('#disableLocation').addEventListener('click', ()=>{ myPos=null; render([]); toast('Posizione disattivata'); });
-      qs('#applyFilter').addEventListener('click', applyCityFilter);
-      qs('#clearFilter').addEventListener('click', ()=>{ qs('#cityInput').value=''; cityFilter=''; decideAndLoad(); });
-      qs('#cityInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); applyCityFilter(); }});
-
-      // start with hint visible (no data)
-      render([]);
-    })();
-
-    // ===== Controls logic =====
-    async function useMyLocation(){
-      clearErr();
-      if (!('geolocation' in navigator)){ showErr('Geolocalizzazione non supportata dal dispositivo.'); return; }
-      navigator.geolocation.getCurrentPosition(async pos=>{
-        myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        toast('Posizione attivata');
-        await decideAndLoad();
-      }, err=>{
-        showErr('Permesso posizione negato o non disponibile.');
-      }, { enableHighAccuracy:true, maximumAge:10_000, timeout:15_000 });
+  window.initChat = async function(){
+    // GATE: richiede login
+    const { data:{session} } = await sb.auth.getSession();
+    if (!session){
+      location.replace(`auth.html?next=${encodeURIComponent(location.pathname+location.search)}`);
+      return;
     }
+    const l = document.getElementById('authLink');
+    l.textContent='Esci'; l.onclick=async(e)=>{e.preventDefault(); await sb.auth.signOut(); location.href='index.html'};
 
-    async function applyCityFilter(){
-      cityFilter = (qs('#cityInput').value||'').trim();
-      await decideAndLoad();
-    }
+    // stanza
+    const { data, error } = await sb.from('rooms').select('*').eq('id',roomId).single();
+    if (error || !data){ alert('Stanza non trovata'); location.replace('index.html'); return; }
+    room=data; document.getElementById('roomTitle').textContent = room.name||'Chat';
 
-    // Decide cosa caricare: se non hai posizione e non hai filtro città -> lista vuota con hint
-    async function decideAndLoad(){
-      if (!myPos && !cityFilter){
-        render([]);
-        return;
-      }
-      await loadRooms(); // aggiorna allRooms dal DB secondo il filtro città (se presente)
-      const data = scoreAndSort(allRooms, myPos);
-      render(data);
-    }
+    // check perimetro → se fuori torna a join
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const me = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+      const path = (room.polygon?.coordinates?.[0]||[]).map(([lng,lat])=>({lat,lng}));
+      const poly = new google.maps.Polygon({paths:path});
+      const inside = google.maps.geometry.poly.containsLocation(me, poly);
+      if (!inside){ location.replace(`join.html?room=${encodeURIComponent(roomId)}&reason=outside`); return; }
 
-    // ===== Data =====
-    // Carica dal DB, con eventuale filtro città (ILIKE)
-    async function loadRooms(){
-      clearErr();
-      try{
-        let query = supabase.from('rooms').select('id,name,city,lat,lng,latitude,longitude,created_at');
-        if (cityFilter){
-          query = query.ilike('city', `%${cityFilter}%`);
-        }
-        const { data, error } = await query;
-        if (error) throw error;
-        allRooms = (data||[]).map(mapCoordsSafely);
-      }catch(e){
-        showErr('Errore caricamento chat: ' + (e?.message||e));
-        allRooms = [];
-      }
-    }
+      canSend=true; bootChat();
+    }, _=>{
+      document.getElementById('geoWarn').classList.remove('hidden');
+      document.getElementById('geoWarn').textContent='Posizione non disponibile: ritorno al check-in.';
+      setTimeout(()=>location.replace(`join.html?room=${encodeURIComponent(roomId)}&reason=nolocation`), 1200);
+    }, { enableHighAccuracy:true, maximumAge:0, timeout:10000 });
+  };
 
-    // normalizza nomi colonne lat/lng
-    function mapCoordsSafely(r){
-      const lat = r.latitude ?? r.lat ?? r.latitudine ?? null;
-      const lng = r.longitude ?? r.lng ?? r.longitudine ?? null;
-      return {...r, _lat: (typeof lat==='number')?lat:parseFloat(lat), _lng: (typeof lng==='number')?lng:parseFloat(lng)};
-    }
+  async function bootChat(){
+    await loadMessages();
+    subscribeRealtime();
 
-    // calcola distanza (km) se ho myPos e se la room ha coordinate
-    function scoreAndSort(rooms, my){
-      const out = rooms.map(r=>{
-        let d=null;
-        if (my && isFinite(r._lat) && isFinite(r._lng)){
-          d = haversine(my.lat, my.lng, r._lat, r._lng);
-        }
-        return {...r, _distanceKm: d};
-      });
-      // ordina: prima quelle con distanza (crescenti), poi le altre
-      out.sort((a,b)=>{
-        if (a._distanceKm==null && b._distanceKm==null) return 0;
-        if (a._distanceKm==null) return 1;
-        if (b._distanceKm==null) return -1;
-        return a._distanceKm - b._distanceKm;
-      });
-      return out;
-    }
+    document.getElementById('formMsg').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      if (!canSend){ alert('Fuori perimetro: invio bloccato.'); return; }
+      const val = document.getElementById('msg').value.trim();
+      if (!val) return;
+      document.getElementById('msg').value='';
+      const { error } = await sb.from('messages').insert({ room_id:roomId, body:val });
+      if (error){ console.error(error); alert('Invio non riuscito'); }
+    });
+  }
 
-    // Haversine
-    function haversine(lat1, lon1, lat2, lon2){
-      const R=6371;
-      const toRad = x=>x*Math.PI/180;
-      const dLat=toRad(lat2-lat1);
-      const dLon=toRad(lon2-lon1);
-      const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-      const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-      return R*c;
-    }
+  async function loadMessages(){
+    const { data } = await sb.from('messages')
+      .select('id,body,created_at,user_id')
+      .eq('room_id',roomId).order('created_at',{ascending:true}).limit(200);
+    const log=document.getElementById('log'); log.innerHTML='';
+    (data||[]).forEach(addMsg); log.scrollTop=log.scrollHeight;
+  }
 
-    // ===== Render =====
-    function render(rooms){
-      clearErr();
-      const hint=qs('#hint');
-      const list=qs('#list');
-      const nores=qs('#noResults');
+  function subscribeRealtime(){
+    sb.channel('public:messages')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:`room_id=eq.${roomId}`},
+        payload=>{
+          addMsg(payload.new);
+          const log=document.getElementById('log'); log.scrollTop=log.scrollHeight;
+        }).subscribe();
+  }
 
-      // Caso “vuoto” (nessuna posizione e nessun filtro)
-      if (!myPos && !cityFilter){
-        hint.style.display='block';
-        list.style.display='none'; list.innerHTML='';
-        nores.style.display='none';
-        return;
-      }
-
-      hint.style.display='none';
-
-      if (!rooms.length){
-        list.style.display='none'; list.innerHTML='';
-        nores.style.display='block';
-        return;
-      }
-
-      nores.style.display='none';
-      list.style.display='flex';
-      list.innerHTML = '';
-
-      for (const r of rooms){
-        const name = r.name || 'Chat';
-        const city = r.city || '—';
-        const dTxt = (r._distanceKm!=null) ? `${r._distanceKm.toFixed(1)} km` : 'distanza sconosciuta';
-        const dotTxt = name.slice(0,1).toUpperCase();
-
-        const el=document.createElement('div');
-        el.className='room';
-        el.innerHTML = `
-          <div class="dot">${dotTxt}</div>
-          <div class="meta">
-            <div class="name">${escapeHtml(name)}</div>
-            <div class="line">
-              <span class="chip">🏙️ ${escapeHtml(city)}</span>
-              <span class="chip">📍 ${dTxt}</span>
-            </div>
-          </div>
-          <div class="right">
-            <a class="btn" href="room.html?room_id=${encodeURIComponent(r.id)}">Entra</a>
-          </div>
-        `;
-        list.appendChild(el);
-      }
-    }
-
-    function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m])); }
-  </script>
+  function addMsg(m){
+    const row = document.createElement('div');
+    row.className='py-1';
+    const t = new Date(m.created_at).toLocaleTimeString();
+    row.innerHTML = `<span class="opacity-60 text-xs">${t}</span> <span class="opacity-80">${escapeHtml(m.body)}</span>`;
+    document.getElementById('log').appendChild(row);
+  }
+  function escapeHtml(s){return (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
+</script>
 </body>
 </html>
