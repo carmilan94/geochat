@@ -61,4 +61,231 @@
   <div id="lbBg" class="overlay"></div>
   <div id="lb" class="lightbox" role="dialog" aria-modal="true">
     <div class="panel">
-      <div cla
+      <div class="media">
+        <button id="prevBtn" class="navbtn prev" aria-label="precedente">‹</button>
+        <img id="lbImg" src="" alt="photo"/>
+        <button id="nextBtn" class="navbtn next" aria-label="successiva">›</button>
+        <button id="closeBtn" class="btn close">Chiudi ✕</button>
+      </div>
+      <aside class="side">
+        <div class="caption" id="lbCaption"></div>
+        <div class="counts" id="lbCounts">0 mi piace • 0 commenti</div>
+        <div id="comments" class="comments"></div>
+        <div id="loginHint" class="mutetiny" style="display:none;margin-top:8px">
+          <a href="auth.html?next=user.html">Accedi</a> per mettere Mi piace o commentare.
+        </div>
+        <div id="commentBox" style="display:none;margin-top:8px">
+          <textarea id="commentText" rows="3" placeholder="Scrivi un commento…"></textarea>
+          <div class="row" style="justify-content:flex-end;margin-top:6px">
+            <button id="likeBtn" class="btn">♡ Mi piace</button>
+            <button id="sendComment" class="btn primary">Commenta</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+<script>
+  // === Supabase init ===
+  const SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const params = new URLSearchParams(location.search);
+  const uid = params.get("uid");
+
+  let me = null;           // utente loggato (o null)
+  let photos = [];         // [{id, image_path, caption}]
+  let idx = 0;             // indice foto aperta
+  let liked = false;       // stato like corrente
+
+  (async () => {
+    // chi è loggato (se c'è)
+    const { data: { session } } = await supabase.auth.getSession();
+    me = session?.user || null;
+
+    if (!uid) {
+      document.body.innerHTML = "<div class='wrap'><p style='color:red'>Errore: nessun UID specificato.</p></div>";
+      return;
+    }
+    await loadProfile(uid);
+    await loadGallery(uid);
+    bindLightboxControls();
+  })();
+
+  async function loadProfile(uid) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('display_name, bio, age, location, avatar_url')
+      .eq('id', uid).maybeSingle();
+
+    if (error) {
+      document.getElementById('header').innerHTML =
+        `<div style="color:#f99;background:#210;padding:12px;border-radius:10px">Errore profilo: ${error.message}</div>`;
+      return;
+    }
+    if (!data) {
+      document.getElementById('header').innerHTML = "<p style='color:red'>Profilo non trovato.</p>";
+      return;
+    }
+
+    document.getElementById('display_name').textContent = data.display_name || "Utente senza nome";
+    document.getElementById('bio').textContent = data.bio || "";
+    const parts = [];
+    if (data.age) parts.push(`Età: ${data.age}`);
+    if (data.location) parts.push(`Località: ${data.location}`);
+    document.getElementById('extra').textContent = parts.join(' · ') || "";
+    document.getElementById('avatar').src = data.avatar_url ||
+      'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" fill="#0f0f12"/><circle cx="80" cy="64" r="34" fill="#1e1e24"/><rect x="28" y="106" width="104" height="34" rx="17" fill="#1e1e24"/></svg>`);
+  }
+
+  async function loadGallery(uid){
+    const grid = document.getElementById('gallery');
+    const empty = document.getElementById('empty');
+    grid.innerHTML = ''; empty.style.display='none';
+
+    const { data, error } = await supabase
+      .from('user_photos')
+      .select('id, image_path, caption, created_at')
+      .eq('user_id', uid)
+      .order('created_at', { ascending:false });
+
+    if (error){
+      grid.innerHTML = `<div style="color:#f99;background:#210;padding:12px;border-radius:10px">Errore galleria: ${error.message}</div>`;
+      return;
+    }
+    if (!data || !data.length){ empty.style.display='block'; return; }
+
+    photos = data;
+    data.forEach((ph, i) => {
+      const div = document.createElement('div');
+      div.className = 'tile';
+      div.innerHTML = `<img src="${ph.image_path}" alt="photo">`;
+      div.addEventListener('click', ()=> openLightbox(i));
+      grid.appendChild(div);
+    });
+  }
+
+  // ===== Lightbox =====
+  function bindLightboxControls(){
+    document.getElementById('lbBg').addEventListener('click', closeLightbox);
+    document.getElementById('closeBtn').addEventListener('click', closeLightbox);
+    document.getElementById('prevBtn').addEventListener('click', ()=> nav(-1));
+    document.getElementById('nextBtn').addEventListener('click', ()=> nav(+1));
+    document.addEventListener('keydown', (e)=>{
+      if (document.getElementById('lb').style.display!=='flex') return;
+      if (e.key==='Escape') closeLightbox();
+      if (e.key==='ArrowLeft') nav(-1);
+      if (e.key==='ArrowRight') nav(+1);
+    });
+  }
+  function openLightbox(i){
+    idx = i;
+    renderLightbox();
+    document.getElementById('lbBg').style.display = 'block';
+    document.getElementById('lb').style.display = 'flex';
+  }
+  function closeLightbox(){
+    document.getElementById('lbBg').style.display = 'none';
+    document.getElementById('lb').style.display = 'none';
+  }
+  function nav(d){
+    idx = (idx + d + photos.length) % photos.length;
+    renderLightbox();
+  }
+
+  async function renderLightbox(){
+    const ph = photos[idx];
+    document.getElementById('lbImg').src = ph.image_path;
+    document.getElementById('lbCaption').textContent = ph.caption || '';
+
+    // mostra box login/azioni
+    const logged = !!me;
+    document.getElementById('loginHint').style.display = logged ? 'none' : 'block';
+    document.getElementById('commentBox').style.display = logged ? 'block' : 'none';
+
+    await refreshCountsAndState(ph.id);
+    await loadComments(ph.id);
+
+    document.getElementById('likeBtn').onclick = toggleLike;
+    document.getElementById('sendComment').onclick = sendComment;
+  }
+
+  async function refreshCountsAndState(photoId){
+    // conteggio like
+    const likeHead = await supabase.from('photo_likes')
+      .select('photo_id', { count: 'exact', head: true })
+      .eq('photo_id', photoId);
+    const likes = likeHead.count ?? 0;
+
+    // conteggio commenti
+    const comHead = await supabase.from('photo_comments')
+      .select('id', { count: 'exact', head: true })
+      .eq('photo_id', photoId);
+    const comments = comHead.count ?? 0;
+
+    // stato like mio
+    liked = false;
+    if (me) {
+      const { data } = await supabase.from('photo_likes')
+        .select('photo_id').eq('photo_id', photoId).eq('user_id', me.id).maybeSingle();
+      liked = !!data;
+    }
+    const btn = document.getElementById('likeBtn');
+    btn.textContent = liked ? '♥ Mi piace' : '♡ Mi piace';
+
+    document.getElementById('lbCounts').textContent = `${likes} mi piace • ${comments} commenti`;
+  }
+
+  async function toggleLike(){
+    const ph = photos[idx];
+    if (!me) return; // solo utenti loggati
+    if (liked){
+      await supabase.from('photo_likes')
+        .delete().eq('photo_id', ph.id).eq('user_id', me.id);
+    } else {
+      await supabase.from('photo_likes')
+        .upsert([{ photo_id: ph.id, user_id: me.id }]);
+    }
+    await refreshCountsAndState(ph.id);
+  }
+
+  async function loadComments(photoId){
+    const list = document.getElementById('comments');
+    list.innerHTML = '';
+    const { data, error } = await supabase
+      .from('photo_comments')
+      .select('id, content, created_at')
+      .eq('photo_id', photoId)
+      .order('created_at', { ascending: true });
+    if (error){ 
+      list.innerHTML = `<div class="mutetiny">Errore commenti: ${error.message}</div>`;
+      return;
+    }
+    if (!data.length){
+      list.innerHTML = `<div class="mutetiny">Ancora nessun commento.</div>`;
+      return;
+    }
+    for (const c of data){
+      const el = document.createElement('div');
+      el.className = 'comment';
+      const when = new Date(c.created_at).toLocaleString();
+      el.innerHTML = `<div>${c.content}</div><div class="mutetiny">${when}</div>`;
+      list.appendChild(el);
+    }
+  }
+
+  async function sendComment(){
+    const ph = photos[idx];
+    const txt = document.getElementById('commentText');
+    const val = (txt.value || '').trim();
+    if (!val) return;
+    await supabase.from('photo_comments')
+      .insert([{ photo_id: ph.id, user_id: me.id, content: val }]);
+    txt.value = '';
+    await refreshCountsAndState(ph.id);
+    await loadComments(ph.id);
+  }
+</script>
+</body>
+</html>
