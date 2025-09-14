@@ -108,72 +108,96 @@
     </div>
   </div>
 
-  <!-- Supabase (UMD) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    (function(){
-      const msg = document.getElementById('msg');
-      const setMsg = (t) => msg.textContent = t || "";
+ <!-- Supabase (UMD) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  var msgEl = document.getElementById('msg');
+  function setMsg(t){ msgEl.textContent = t || ''; console.log('[AUTH]', t); }
 
-      const SUPABASE_URL  = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
-      const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
-      if (!window.supabase || !window.supabase.createClient) {
-        setMsg('Errore: libreria Supabase non caricata. Ricarica la pagina (Ctrl+F5).');
-        return;
-      }
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  var SUPABASE_URL  = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
+  var SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
 
-      // LOGIN
-      document.getElementById('paneLogin').addEventListener('submit', async (e)=>{
-        e.preventDefault();
-        setMsg('Accesso in corso…');
-        const email = document.getElementById('lEmail').value.trim();
-        const password = document.getElementById('lPassword').value;
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) { setMsg(error.message); return; }
-        await ensureProfileDisplayName();
-        setMsg('Accesso riuscito! Reindirizzo…');
-        setTimeout(()=> location.href='/', 600);
-      });
+  if (!window.supabase || !window.supabase.createClient) {
+    setMsg('Errore: libreria Supabase non caricata. Ricarica la pagina (Ctrl+F5).');
+    return;
+  }
+  var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-      // SIGNUP
-      document.getElementById('paneSignup').addEventListener('submit', async (e)=>{
-        e.preventDefault();
-        setMsg('');
-        const first = document.getElementById('sFirst').value.trim();
-        const last  = document.getElementById('sLast').value.trim();
-        const email = document.getElementById('sEmail').value.trim();
-        const pass  = document.getElementById('sPassword').value;
-        const pass2 = document.getElementById('sPassword2').value;
+  // LOGIN
+  document.getElementById('paneLogin').addEventListener('submit', function(e){
+    e.preventDefault();
+    setMsg('Accesso in corso…');
+    var email = document.getElementById('lEmail').value.trim();
+    var password = document.getElementById('lPassword').value;
 
-        if (!first || !last) return setMsg('Inserisci nome e cognome.');
-        if (pass !== pass2)   return setMsg('Le password non coincidono.');
-
-        setMsg('Registrazione in corso…');
-        const { error } = await supabase.auth.signUp({
-          email, password: pass,
-          options: { data: { first_name: first, last_name: last } }
+    supabase.auth.signInWithPassword({ email: email, password: password })
+      .then(function(res){
+        console.log('[LOGIN result]', res);
+        if (res.error){ setMsg(res.error.message); return; }
+        ensureProfileDisplayName().then(function(){
+          setMsg('Accesso riuscito! Reindirizzo…');
+          setTimeout(function(){ location.href = '/'; }, 600);
         });
-        if (error) { setMsg(error.message); return; }
-
-        setMsg('Registrazione effettuata! Controlla la tua email per confermare e poi accedi.');
-        await ensureProfileDisplayName(first, last); // se non serve conferma
       });
+  });
 
-      // Crea/aggiorna profilo con display_name
-      async function ensureProfileDisplayName(first, last){
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const fn = first ?? (user.user_metadata && user.user_metadata.first_name) || '';
-        const ln = last  ?? (user.user_metadata && user.user_metadata.last_name) || '';
-        const display = (fn + ' ' + ln).trim() || (user.email || '');
-        await supabase.from('profiles').upsert({
-          id: user.id,
-          email: user.email,
-          display_name: display
-        });
+  // SIGNUP
+  document.getElementById('paneSignup').addEventListener('submit', function(e){
+    e.preventDefault();
+    setMsg('');
+    var first = document.getElementById('sFirst').value.trim();
+    var last  = document.getElementById('sLast').value.trim();
+    var email = document.getElementById('sEmail').value.trim();
+    var pass  = document.getElementById('sPassword').value;
+    var pass2 = document.getElementById('sPassword2').value;
+
+    if (!first || !last){ setMsg('Inserisci nome e cognome.'); return; }
+    if (pass !== pass2){ setMsg('Le password non coincidono.'); return; }
+
+    setMsg('Registrazione in corso…');
+    supabase.auth.signUp({
+      email: email,
+      password: pass,
+      options: { data: { first_name: first, last_name: last } }
+    })
+    .then(function(res){
+      console.log('[SIGNUP result]', res);
+      if (res.error){ setMsg(res.error.message); return; }
+      ensureProfileDisplayName(first, last).then(function(){
+        setMsg('Registrazione effettuata! Se richiesto, controlla la tua email; altrimenti sei già dentro.');
+        setTimeout(function(){ location.href = '/'; }, 800);
+      });
+    });
+  });
+
+  // Crea/aggiorna profilo con display_name
+  function ensureProfileDisplayName(first, last){
+    return supabase.auth.getUser().then(function(r){
+      var user = r && r.data ? r.data.user : null;
+      if (!user) return;
+
+      // ricava nome/cognome: prioritario ciò che passa il form
+      var fn = first;
+      var ln = last;
+      if (!fn && user.user_metadata && user.user_metadata.first_name) {
+        fn = user.user_metadata.first_name;
       }
-    })();
-  </script>
-</body>
-</html>
+      if (!ln && user.user_metadata && user.user_metadata.last_name) {
+        ln = user.user_metadata.last_name;
+      }
+
+      var display = (fn ? fn : '') + (ln ? (' ' + ln) : '');
+      if (!display) { display = user.email ? user.email : ''; }
+
+      return supabase.from('profiles').upsert({
+        id: user.id,
+        email: user.email,
+        display_name: display
+      }).then(function(upRes){
+        if (upRes.error) console.log('[profiles upsert error]', upRes.error);
+      });
+    });
+  }
+})();
+</script>
