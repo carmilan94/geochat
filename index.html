@@ -3,40 +3,44 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GeoChat • Supabase + Google Maps</title>
-
-  <!-- Tailwind (ok anche da CDN per MVP) -->
+  <title>GeoChat • Crea la tua chat geolocalizzata</title>
+  <meta name="description" content="GeoChat: crea chat geolocalizzate con perimetro su mappa, QR per ingresso e controllo presenza." />
+  <link rel="icon" href="data:,">
+  
+  <!-- Tailwind (ok per MVP) -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- QRCode -->
+  
+  <!-- QR code lib -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
+  
   <style>
-    #gmap, #joinMap { height: 420px; }
-    .scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
-    .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
-    .gm-control-btn { background:#fff; border:1px solid #e5e7eb; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,.08); padding:6px 10px; margin-right:6px; font-size:12px; cursor:pointer; }
-    .gm-control-btn[disabled] { opacity:.5; cursor:not-allowed; }
+    #gmap { height: 460px; }
+    .gm-control-btn{ background:#fff; border:1px solid #e5e7eb; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,.10); padding:6px 10px; margin-right:6px; font-size:12px; cursor:pointer; }
+    .gm-control-btn[disabled]{ opacity:.5; cursor:not-allowed; }
+    .badgelite{font-size:12px; padding:2px 8px; border-radius:999px;}
   </style>
-  <link rel="icon" href="data:,"> <!-- evita 404 favicon -->
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-900">
+<body class="bg-slate-50 text-slate-900 min-h-screen">
   <header class="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-slate-200">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-2xl bg-slate-900 text-white grid place-items-center font-bold">GC</div>
         <h1 class="text-xl font-bold">GeoChat</h1>
-        <span class="ml-2 text-sm text-slate-500">Supabase + Google Maps</span>
+        <span class="ml-2 text-sm text-slate-500">MVP • Supabase + Google Maps</span>
       </div>
       <nav class="text-sm flex items-center gap-4">
         <a href="#" id="navCreate" class="font-medium text-slate-700 hover:text-slate-900">Crea chat</a>
         <a href="#" id="navJoin" class="text-slate-500 hover:text-slate-900">Entra</a>
+        <a href="/admin.html" class="text-slate-500 hover:text-slate-900">Admin</a>
       </nav>
     </div>
   </header>
 
   <main class="max-w-6xl mx-auto px-4 py-6">
-    <!-- CREATE -->
+    <!-- AUTH STRIP -->
+    <div id="authStrip" class="mb-4 p-3 rounded-xl bg-amber-50 text-amber-800 hidden"></div>
+
+    <!-- CREA CHAT -->
     <section id="createSection" class="space-y-6">
       <div class="grid md:grid-cols-5 gap-4">
         <div class="md:col-span-3 bg-white rounded-2xl shadow p-4">
@@ -48,29 +52,24 @@
             <button id="btnSearch" class="px-4 py-2 rounded-lg bg-slate-900 text-white">Cerca</button>
           </div>
 
-          <div class="flex items-center gap-3 mb-2">
-            <label class="flex items-center gap-2 text-sm text-slate-600">
-              Mappa:
-              <select id="mapType" class="border rounded-lg px-2 py-1">
-                <option value="roadmap">Stradale</option>
-                <option value="satellite">Satellite</option>
-                <option value="hybrid">Ibrida</option>
-                <option value="terrain">Terreno</option>
-              </select>
-            </label>
+          <div class="flex items-center gap-3 mb-2 text-sm text-slate-600">
+            <span>Strumenti:</span>
+            <span class="badgelite bg-slate-100">➕ Disegna</span>
+            <span class="badgelite bg-slate-100">✎ Modifica</span>
+            <span class="badgelite bg-slate-100">🗑️ Elimina</span>
           </div>
 
-          <div id="gmap" class="rounded-xl overflow-hidden border"></div>
+          <div id="gmap" class="rounded-xl overflow-hidden border relative"></div>
           <p class="mt-2 text-sm text-slate-600">
-            Usa lo strumento <em>poligono</em> (pulsantiera in alto a sinistra) per disegnare l'area.<br/>
-            • Clic destro su un vertice per rimuoverlo • Bottoni: “✎ Modifica”, “🗑️ Elimina”, “➕ Disegna”.
+            Disegna un <strong>poligono</strong> intorno al locale. Usa i bottoni in alto a sinistra della mappa.
+            Per rimuovere un vertice: <em>click destro</em> su quel punto.
           </p>
         </div>
 
         <div class="md:col-span-2 bg-white rounded-2xl shadow p-4 flex flex-col">
           <h2 class="text-lg font-semibold mb-3">2) Crea la chat & QR</h2>
           <label class="text-sm mb-1">Descrizione (opzionale)</label>
-          <textarea id="venueDesc" class="w-full h-24 px-3 py-2 border rounded-lg focus:outline-none focus:ring" placeholder="Es. Chat del Bar Centrale solo per chi è dentro il locale"></textarea>
+          <textarea id="venueDesc" class="w-full h-28 px-3 py-2 border rounded-lg focus:outline-none focus:ring" placeholder="Es. Chat del Bar Centrale solo per chi è dentro il locale"></textarea>
 
           <button id="btnCreate" class="mt-3 px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-50">Crea chat</button>
 
@@ -101,271 +100,252 @@
       </div>
     </section>
 
-    <!-- JOIN -->
+    <!-- ENTRA (placeholder semplice) -->
     <section id="joinSection" class="hidden space-y-4">
       <div class="bg-white rounded-2xl shadow p-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 id="roomTitle" class="text-lg font-semibold">Entra nella chat</h2>
-            <p id="roomSubtitle" class="text-sm text-slate-600">Scansiona un QR o apri un link con ?room=...</p>
-          </div>
-          <span id="geoStatus" class="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700">Geolocalizzazione…</span>
-        </div>
-        <div id="joinMap" class="rounded-xl overflow-hidden border mt-3"></div>
-      </div>
-
-      <div class="grid md:grid-cols-3 gap-4">
-        <div class="md:col-span-2 bg-white rounded-2xl shadow p-4 flex flex-col">
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="font-semibold">Chat</h3>
-            <span id="insideBadge" class="text-xs px-2 py-1 rounded-full bg-rose-100 text-rose-700">Fuori area</span>
-          </div>
-          <div id="messages" class="flex-1 min-h-[240px] max-h-[360px] overflow-y-auto pr-1 scrollbar-thin bg-slate-50 rounded-xl p-3"></div>
-          <div class="mt-3 flex gap-2">
-            <input id="msgInput" class="flex-1 px-3 py-2 border rounded-lg" placeholder="Scrivi un messaggio…" />
-            <button id="btnSend" class="px-4 py-2 rounded-lg bg-slate-900 text-white disabled:opacity-50">Invia</button>
-          </div>
-        </div>
-        <div class="bg-white rounded-2xl shadow p-4">
-          <h3 class="font-semibold mb-2">Info stanza</h3>
-          <dl class="text-sm text-slate-700 space-y-1">
-            <div class="flex justify-between"><dt>Nome</dt><dd id="infoName" class="font-medium text-slate-900">—</dd></div>
-            <div class="flex justify-between"><dt>Indirizzo</dt><dd id="infoAddr">—</dd></div>
-            <div class="flex justify-between"><dt>Creato</dt><dd id="infoCreated" class="whitespace-nowrap">—</dd></div>
-            <div class="flex justify-between"><dt>Utente</dt><dd id="infoUser">—</dd></div>
-          </dl>
-        </div>
+        <h2 class="text-lg font-semibold">Entra in una chat</h2>
+        <p class="text-sm text-slate-600">Apri un link con <code>?room=...</code> oppure scansiona un QR creato da un locale.</p>
       </div>
     </section>
   </main>
 
-  <!-- GOOGLE MAPS (Places + Drawing + Geometry) -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=places,drawing,geometry&language=it&region=IT"></script>
+  <!-- Supabase UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- TUTTO IL CODICE IN UN MODULO (import ESM di Supabase) -->
-  <script type="module">
-    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
+  <script>
+    // =====================
+    //  CONFIG SUPABASE
+    // =====================
+    var SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
+    var SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
+    var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    /* ====== CONFIG SUPABASE (tuoi valori) ====== */
-    const SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
+    // UI refs
+    var authStrip = document.getElementById('authStrip');
+    var navCreate = document.getElementById('navCreate');
+    var navJoin   = document.getElementById('navJoin');
+    var createSection = document.getElementById('createSection');
+    var joinSection   = document.getElementById('joinSection');
 
-    /* ====== Inizializza Supabase ====== */
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    navCreate.onclick = function(e){ e.preventDefault(); createSection.classList.remove('hidden'); joinSection.classList.add('hidden'); };
+    navJoin.onclick   = function(e){ e.preventDefault(); joinSection.classList.remove('hidden'); createSection.classList.add('hidden'); };
 
-    /* ====== Identità utente locale ====== */
-    let localUserId = localStorage.getItem("geochat_user");
-    if (!localUserId) { localUserId = Math.random().toString(36).slice(2, 8); localStorage.setItem("geochat_user", localUserId); }
-    const infoUserEl = document.getElementById("infoUser"); if (infoUserEl) infoUserEl.textContent = localUserId;
+    // =====================
+    //  GOOGLE MAPS
+    // =====================
+    var map, drawingManager, activePolygon = null, placeService, autocomplete, infowin;
+    var addressInput = document.getElementById('addressInput');
+    var venueNameInput = document.getElementById('venueName');
+    var btnSearch = document.getElementById('btnSearch');
 
-    /* ====== NAV ====== */
-    const createSection = document.getElementById("createSection");
-    const joinSection   = document.getElementById("joinSection");
-    document.getElementById("navCreate").onclick = (e)=>{ e.preventDefault(); createSection.classList.remove("hidden"); joinSection.classList.add("hidden"); history.replaceState({}, "", location.pathname); };
-    document.getElementById("navJoin").onclick   = (e)=>{ e.preventDefault(); createSection.classList.add("hidden");   joinSection.classList.remove("hidden"); initJoin(); };
-    const roomParam = new URLSearchParams(location.search).get("room");
-    if (roomParam) { createSection.classList.add("hidden"); joinSection.classList.remove("hidden"); }
-
-    /* ====== GOOGLE MAP (CREATE) ====== */
-    let map, drawingManager, drawnPolygon = null, marker = null, autocomplete, placesService;
-    let btnEdit, btnDelete, btnRedraw;
-
-    function addControlButton(map, position, text, title, onClick){
-      const div = document.createElement("div");
-      const btn = document.createElement("button");
-      btn.className = "gm-control-btn"; btn.type = "button"; btn.textContent = text; btn.title = title;
-      btn.addEventListener("click", onClick);
-      div.appendChild(btn);
-      map.controls[position].push(div);
-      return btn;
-    }
-    function updateControls(){ const hasPoly = !!drawnPolygon; if (btnEdit) btnEdit.disabled=!hasPoly; if (btnDelete) btnDelete.disabled=!hasPoly; }
-
-    function initCreateMap(){
-      map = new google.maps.Map(document.getElementById("gmap"), {
-        center: { lat: 41.9028, lng: 12.4964 }, zoom: 6, mapTypeId: "roadmap", fullscreenControl: true, streetViewControl: false
-      });
-      placesService = new google.maps.places.PlacesService(map);
-
-      document.getElementById("mapType").addEventListener("change", function(){ map.setMapTypeId(this.value); });
-
-      // Autocomplete
-      autocomplete = new google.maps.places.Autocomplete(
-        document.getElementById("addressInput"),
-        { types: ["geocode","establishment"], componentRestrictions: { country: "it" }, fields: ["name","formatted_address","geometry","place_id"] }
-      );
-      autocomplete.addListener("place_changed", function(){
-        const place = autocomplete.getPlace(); if (!place || !place.geometry) return;
-        const loc = place.geometry.location;
-        if (marker) marker.setMap(null);
-        marker = new google.maps.Marker({ position: loc, map, title: place.name || place.formatted_address || "" });
-        map.setCenter(loc); map.setZoom(18);
+    function initMap(){
+      map = new google.maps.Map(document.getElementById('gmap'), {
+        center: { lat: 41.9028, lng: 12.4964 }, // Roma
+        zoom: 14,
+        mapTypeId: 'roadmap',
+        gestureHandling: 'greedy',
       });
 
-      // Bottone Cerca: Text Search
-      document.getElementById("btnSearch").onclick = function(){
-        const q = document.getElementById("addressInput").value.trim(); if (!q) return;
-        placesService.textSearch({ query: q }, function(results, status){
-          if (status !== google.maps.places.PlacesServiceStatus.OK || !results?.length) { alert("Nessun risultato"); return; }
-          const r = results[0];
-          if (marker) marker.setMap(null);
-          marker = new google.maps.Marker({ position: r.geometry.location, map, title: r.name || r.formatted_address || "" });
-          map.setCenter(r.geometry.location); map.setZoom(18);
-        });
-      };
+      infowin = new google.maps.InfoWindow();
 
-      // Drawing (poligono)
+      // Drawing tools
       drawingManager = new google.maps.drawing.DrawingManager({
-        drawingMode: google.maps.drawing.OverlayType.POLYGON,
+        drawingMode: null,
         drawingControl: true,
-        drawingControlOptions: { drawingModes: [google.maps.drawing.OverlayType.POLYGON] },
-        polygonOptions: { strokeColor:"#2563eb", strokeOpacity:1, strokeWeight:2, fillColor:"#2563eb", fillOpacity:0.2, editable:true }
+        drawingControlOptions: {
+          position: google.maps.ControlPosition.TOP_LEFT,
+          drawingModes: [google.maps.drawing.OverlayType.POLYGON]
+        },
+        polygonOptions: {
+          fillColor: '#10b981', fillOpacity: 0.15,
+          strokeColor: '#10b981', strokeWeight: 2,
+          editable: true, draggable: false
+        }
       });
       drawingManager.setMap(map);
 
-      google.maps.event.addListener(drawingManager, "overlaycomplete", function(e){
-        if (e.type === google.maps.drawing.OverlayType.POLYGON) {
-          if (drawnPolygon) drawnPolygon.setMap(null);
-          drawnPolygon = e.overlay;
+      google.maps.event.addListener(drawingManager, 'overlaycomplete', function(e){
+        if (e.type === google.maps.drawing.OverlayType.POLYGON){
+          if (activePolygon){ activePolygon.setMap(null); }
+          activePolygon = e.overlay; // google.maps.Polygon
           drawingManager.setDrawingMode(null);
-          google.maps.event.addListener(drawnPolygon, "rightclick", function(ev){ if (typeof ev.vertex === "number") drawnPolygon.getPath().removeAt(ev.vertex); });
-          updateControls();
+          attachVertexRightClick(activePolygon);
         }
       });
 
-      // Controlli personalizzati
-      btnEdit = addControlButton(map, google.maps.ControlPosition.TOP_LEFT, "✎ Modifica", "Abilita/Disabilita modifica poligono", function(){
-        if (!drawnPolygon) return; const editable = drawnPolygon.getEditable(); drawnPolygon.setEditable(!editable); this.textContent = drawnPolygon.getEditable() ? "✓ Modifica" : "✎ Modifica";
+      // Custom controls
+      addControls();
+
+      // Places Autocomplete
+      autocomplete = new google.maps.places.Autocomplete(addressInput, {
+        fields: ['place_id','name','formatted_address','geometry']
       });
-      btnDelete = addControlButton(map, google.maps.ControlPosition.TOP_LEFT, "🗑️ Elimina", "Cancella perimetro", function(){
-        if (!drawnPolygon) return; drawnPolygon.setMap(null); drawnPolygon=null; drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON); updateControls();
+      autocomplete.addListener('place_changed', function(){
+        var place = autocomplete.getPlace();
+        if (!place || !place.geometry) return;
+        map.fitBounds(place.geometry.viewport || new google.maps.LatLngBounds(place.geometry.location, place.geometry.location));
+        if (!venueNameInput.value && place.name){ venueNameInput.value = place.name; }
       });
-      btnRedraw = addControlButton(map, google.maps.ControlPosition.TOP_LEFT, "➕ Disegna", "Disegna un nuovo perimetro", function(){ drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON); });
 
-      updateControls();
+      // Manual search button (text → Places TextSearch)
+      btnSearch.onclick = function(){
+        var q = addressInput.value;
+        if (!q){ return; }
+        var svc = new google.maps.places.PlacesService(map);
+        svc.textSearch({ query: q }, function(results, status){
+          if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length){
+            var r = results[0];
+            map.fitBounds(r.geometry.viewport || new google.maps.LatLngBounds(r.geometry.location, r.geometry.location));
+            if (!venueNameInput.value && r.name){ venueNameInput.value = r.name; }
+            addressInput.value = r.formatted_address || addressInput.value;
+          }
+        });
+      };
     }
 
-    /* ====== CREA STANZA ====== */
-    const btnCreate = document.getElementById("btnCreate");
-    const createResult = document.getElementById("createResult");
-    const joinLinkInput = document.getElementById("joinLink");
-    const qrcodeDiv = document.getElementById("qrcode");
-
-    btnCreate.onclick = async function(){
-      const name = document.getElementById("venueName").value.trim() || "Chat del locale";
-      const desc = document.getElementById("venueDesc").value.trim();
-      const address = document.getElementById("addressInput").value.trim();
-      if (!drawnPolygon) { alert("Disegna il perimetro (poligono) prima di creare la chat."); return; }
-
-      // Estrai coord [lng,lat]
-      const path = drawnPolygon.getPath(); const coords = [];
-      for (let i=0;i<path.getLength();i++){ const ll = path.getAt(i); coords.push([ll.lng(), ll.lat()]); }
-      if (coords.length && (coords[0][0]!==coords.at(-1)[0] || coords[0][1]!==coords.at(-1)[1])) coords.push(coords[0]);
-
-      const bounds = new google.maps.LatLngBounds(); for (let j=0;j<path.getLength();j++) bounds.extend(path.getAt(j));
-      const center = bounds.getCenter();
-
-      const roomId = Math.random().toString(36).slice(2,10);
-
-      const { error } = await supabase.from("rooms").insert({
-        id: roomId, name, description: desc, address,
-        polygon: { type:"Polygon", coordinates:[coords] },
-        center_lat: center.lat(), center_lng: center.lng(), created_by: localUserId
+    function attachVertexRightClick(poly){
+      google.maps.event.addListener(poly.getPath(), 'rightclick', function(e){
+        if (e.vertex == null) return;
+        poly.getPath().removeAt(e.vertex);
       });
-      if (error) { console.error(error); alert("Errore creazione stanza: " + error.message); return; }
-
-      const joinUrl = location.origin + location.pathname + "?room=" + roomId;
-      joinLinkInput.value = joinUrl; createResult.classList.remove("hidden"); qrcodeDiv.innerHTML = "";
-      new QRCode(qrcodeDiv, { text: joinUrl, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
-      document.getElementById("btnCopyLink").onclick = function(){ joinLinkInput.select(); document.execCommand("copy"); };
-      document.getElementById("btnDownloadQR").onclick = function(){ const img = qrcodeDiv.querySelector("img")||qrcodeDiv.querySelector("canvas"); if (!img) return; const a=document.createElement("a"); a.download="GeoChat-"+roomId+".png"; a.href=img.src||img.toDataURL(); a.click(); };
-    };
-
-    /* ====== JOIN (Supabase + Maps) ====== */
-    let joinMap, joinPolygon=null, roomId, roomMeta;
-    const geoStatus   = document.getElementById("geoStatus");
-    const insideBadge = document.getElementById("insideBadge");
-    const messagesEl  = document.getElementById("messages");
-    const btnSend     = document.getElementById("btnSend");
-    const msgInput    = document.getElementById("msgInput");
-    let messagesChannel = null;
-
-    async function initJoin(){
-      if (!joinMap) joinMap = new google.maps.Map(document.getElementById("joinMap"), { center:{lat:41.9028,lng:12.4964}, zoom:6, mapTypeId:"roadmap", fullscreenControl:true, streetViewControl:false });
-      messagesEl.innerHTML = "";
-
-      const params = new URLSearchParams(location.search); roomId = params.get("room"); if (!roomId) return;
-
-      const { data: room, error } = await supabase.from("rooms").select("*").eq("id", roomId).single();
-      if (error || !room) { alert("Stanza non trovata."); return; }
-      roomMeta = room;
-
-      document.getElementById("roomTitle").textContent = "Chat: " + (roomMeta.name || "—");
-      document.getElementById("roomSubtitle").textContent = roomMeta.description || "—";
-      document.getElementById("infoName").textContent = roomMeta.name || "—";
-      document.getElementById("infoAddr").textContent = roomMeta.address || "—";
-      document.getElementById("infoCreated").textContent = new Date(roomMeta.created_at).toLocaleString();
-
-      if (joinPolygon) joinPolygon.setMap(null);
-      const path = roomMeta.polygon.coordinates[0].map(p => ({ lat: p[1], lng: p[0] }));
-      joinPolygon = new google.maps.Polygon({ paths: path, strokeColor:"#334155", strokeWeight:2, strokeOpacity:1, fillColor:"#334155", fillOpacity:0.15, map: joinMap });
-
-      const bounds = new google.maps.LatLngBounds(); path.forEach(pt => bounds.extend(pt)); joinMap.fitBounds(bounds);
-
-      startGeoWatch();
-      await loadMessages();
-      subscribeRealtime();
     }
 
-    async function loadMessages(){
-      const { data, error } = await supabase.from("messages").select("*").eq("room_id", roomId).order("created_at",{ascending:true}).limit(100);
-      if (error) { console.error(error); return; }
-      messagesEl.innerHTML = ""; (data||[]).forEach(appendMsg); messagesEl.scrollTop = messagesEl.scrollHeight;
+    function addControls(){
+      // Modifica ON/OFF
+      var editBtn = document.createElement('button');
+      editBtn.textContent = '✎ Modifica';
+      editBtn.className = 'gm-control-btn';
+      editBtn.onclick = function(){ if (activePolygon){ var ed = activePolygon.getEditable(); activePolygon.setEditable(!ed); } };
+
+      // Elimina poligono
+      var delBtn = document.createElement('button');
+      delBtn.textContent = '🗑️ Elimina';
+      delBtn.className = 'gm-control-btn';
+      delBtn.onclick = function(){ if (activePolygon){ activePolygon.setMap(null); activePolygon = null; } };
+
+      // Disegna nuovo
+      var drawBtn = document.createElement('button');
+      drawBtn.textContent = '➕ Disegna';
+      drawBtn.className = 'gm-control-btn';
+      drawBtn.onclick = function(){ drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON); };
+
+      var ctlDiv = document.createElement('div');
+      ctlDiv.style.margin = '10px';
+      ctlDiv.appendChild(drawBtn); ctlDiv.appendChild(editBtn); ctlDiv.appendChild(delBtn);
+      map.controls[google.maps.ControlPosition.TOP_LEFT].push(ctlDiv);
     }
 
-    function subscribeRealtime(){
-      if (messagesChannel) { supabase.removeChannel(messagesChannel); messagesChannel = null; }
-      messagesChannel = supabase
-        .channel("room_"+roomId)
-        .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages", filter:"room_id=eq."+roomId }, (payload)=>appendMsg(payload.new))
-        .subscribe();
+    // =====================
+    //  CREA CHAT (Supabase)
+    // =====================
+    var btnCreate = document.getElementById('btnCreate');
+    var createResult = document.getElementById('createResult');
+    var joinLinkInput = document.getElementById('joinLink');
+    var btnCopyLink = document.getElementById('btnCopyLink');
+    var btnDownloadQR = document.getElementById('btnDownloadQR');
+
+    btnCreate.onclick = function(){ createRoom(); };
+
+    function showAuthHint(t){
+      authStrip.textContent = t;
+      authStrip.classList.remove('hidden');
     }
 
-    function appendMsg(msg){
-      const wrap = document.createElement("div"); wrap.className="mb-2";
-      const who  = document.createElement("div"); who.className="text-xs text-slate-500";
-      const ts   = new Date(msg.created_at || Date.now()).toLocaleTimeString();
-      who.textContent = (msg.user_id || "Anon") + " • " + ts;
-      const bubble = document.createElement("div"); bubble.className="inline-block px-3 py-2 rounded-2xl bg-white shadow border mt-0.5"; bubble.textContent = msg.body;
-      wrap.appendChild(who); wrap.appendChild(bubble); messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight;
+    function generateId(n){
+      var chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      var out = ''; for (var i=0;i<n;i++){ out += chars.charAt(Math.floor(Math.random()*chars.length)); }
+      return out;
     }
 
-    function startGeoWatch(){
-      if (!navigator.geolocation) { geoStatus.textContent="Geolocalizzazione non supportata"; return; }
-      geoStatus.textContent="In attesa posizione…";
-      function onUpdate(pos){
-        const lat = pos.coords.latitude, lng = pos.coords.longitude;
-        let inside = false;
-        if (joinPolygon) inside = google.maps.geometry.poly.containsLocation(new google.maps.LatLng(lat,lng), joinPolygon);
-        geoStatus.textContent = inside ? "✅ Dentro l'area" : "❌ Fuori area";
-        insideBadge.textContent = inside ? "Dentro area" : "Fuori area";
-        insideBadge.className = inside ? "text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700" : "text-xs px-2 py-1 rounded-full bg-rose-100 text-rose-700";
-        btnSend.disabled = !inside;
+    function polygonToGeoJSON(poly){
+      if (!poly) return null;
+      var path = poly.getPath();
+      if (!path || path.getLength() < 3) return null;
+      var coords = [];
+      for (var i=0;i<path.getLength();i++){
+        var p = path.getAt(i);
+        coords.push([p.lng(), p.lat()]);
       }
-      function onError(){ geoStatus.textContent="Posizione non disponibile"; btnSend.disabled=true; }
-      navigator.geolocation.watchPosition(onUpdate,onError,{ enableHighAccuracy:true, maximumAge:5000, timeout:10000 });
+      // chiudi anello
+      var first = path.getAt(0);
+      coords.push([first.lng(), first.lat()]);
+      return { type: 'Polygon', coordinates: [coords] };
     }
 
-    btnSend.onclick = async function(){
-      const text = msgInput.value.trim(); if (!text || !roomId) return;
-      const { error } = await supabase.from("messages").insert({ room_id: roomId, user_id: localUserId, body: text });
-      if (!error) msgInput.value = ""; else alert("Errore invio messaggio: " + error.message);
-    };
-    msgInput.addEventListener("keydown", (e)=>{ if (e.key==="Enter") btnSend.click(); });
+    function polygonCenter(poly){
+      var b = new google.maps.LatLngBounds();
+      var path = poly.getPath(); for (var i=0;i<path.getLength();i++){ b.extend(path.getAt(i)); }
+      var c = b.getCenter(); return { lat: c.lat(), lng: c.lng() };
+    }
 
-    // Boot
-    function boot(){ initCreateMap(); if (roomParam) initJoin(); }
-    boot();
+    async function createRoom(){
+      // 1) Verifica login
+      var userResp = await supabase.auth.getUser();
+      var user = userResp && userResp.data ? userResp.data.user : null;
+      if (!user){
+        showAuthHint('Devi essere registrato e loggato per creare una chat. Ti porto alla pagina di accesso…');
+        setTimeout(function(){ location.href = '/auth.html?next=' + encodeURIComponent(location.pathname + location.search); }, 800);
+        return;
+      }
+
+      // 2) Controlli mappa
+      if (!activePolygon){ alert('Disegna prima un perimetro sulla mappa.'); return; }
+      var gj = polygonToGeoJSON(activePolygon);
+      if (!gj){ alert('Perimetro non valido: servono almeno 3 punti.'); return; }
+
+      // 3) Dati
+      var rid = generateId(8);
+      var name = venueNameInput.value || 'Chat locale';
+      var desc = document.getElementById('venueDesc').value || '';
+      var address = addressInput.value || '';
+      var center = polygonCenter(activePolygon);
+
+      // 4) INSERT (owner_id = user.id)
+      var payload = {
+        id: rid,
+        name: name,
+        description: desc,
+        address: address,
+        polygon: gj,
+        center_lat: center.lat,
+        center_lng: center.lng,
+        owner_id: user.id,
+        is_public: true
+      };
+
+      var ins = await supabase.from('rooms').insert(payload);
+      if (ins.error){ alert(ins.error.message); return; }
+
+      // 5) Mostra link e QR
+      var link = location.origin + location.pathname + '?room=' + rid;
+      joinLinkInput.value = link;
+      createResult.classList.remove('hidden');
+      new QRCode(document.getElementById('qrcode'), { text: link, width: 180, height: 180 });
+    }
+
+    btnCopyLink.onclick = function(){
+      joinLinkInput.select(); try{ document.execCommand('copy'); }catch(e){}
+    };
+
+    btnDownloadQR.onclick = function(){
+      var canvas = document.querySelector('#qrcode canvas');
+      if (!canvas) return;
+      var a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'geochat-qr.png'; a.click();
+    };
+
+    // Se arriva ?room= nell'URL mostra la sezione Entra (placeholder)
+    (function(){
+      var qs = location.search || '';
+      if (qs.indexOf('room=') !== -1){
+        joinSection.classList.remove('hidden');
+        createSection.classList.add('hidden');
+      }
+    })();
+  </script>
+
+  <!-- Google Maps JS API (tua key con Places + Drawing) -->
+  <script async defer 
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=places,drawing,geometry&callback=initMap">
   </script>
 </body>
 </html>
