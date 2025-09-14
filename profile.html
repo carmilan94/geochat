@@ -302,4 +302,89 @@
       if (!data || !data.length){ empty.style.display='block'; return; }
 
       for (const ph of data){
-        cons
+        const tile = document.createElement('div'); tile.className='tile';
+        tile.innerHTML = `
+          <img src="${ph.image_path}" alt="photo"/>
+          <button class="btn danger del" style="position:absolute;top:6px;right:6px">Elimina</button>
+          ${ph.caption ? `<div class="muted" style="padding:6px">${ph.caption}</div>` : ``}
+        `;
+        tile.querySelector('.del').addEventListener('click', ()=> deletePhoto(ph.id, ph.image_path, tile));
+        grid.appendChild(tile);
+      }
+    }
+
+    // ======= MODALE UPLOAD (con caption + progress) =======
+    function openUploadModal(e){
+      chosenFiles = [];
+      const files = e.target.files;
+      if (!files || !files.length) return;
+
+      const list = qs('#uploadList'); list.innerHTML = '';
+      for (const f of files){
+        const url = URL.createObjectURL(f);
+        const row = document.createElement('div'); row.className='item';
+        row.innerHTML = `
+          <img src="${url}" alt="preview"/>
+          <div>
+            <input placeholder="Didascalia (facoltativa)"/>
+            <div class="bar" style="margin-top:8px"><span></span></div>
+          </div>`;
+        list.appendChild(row);
+        chosenFiles.push({
+          file: f,
+          captionInput: row.querySelector('input'),
+          progressEl: row.querySelector('.bar span')
+        });
+      }
+      qs('#overlay').style.display = 'flex';
+    }
+    function closeUploadModal(){
+      qs('#overlay').style.display = 'none';
+      qs('#photoPicker').value = '';
+      chosenFiles = [];
+    }
+
+    async function startUpload(){
+      clearErr();
+      if (!chosenFiles.length) { closeUploadModal(); return; }
+      for (const item of chosenFiles){
+        item.progressEl.style.width = '25%';
+        const f = item.file;
+        const safe = f.name.replace(/\s+/g,'_');
+        const path = `${user.id}/${Date.now()}_${safe}`;
+
+        const { error: upErr } = await supabase.storage.from('user-media').upload(path, f, { upsert:false });
+        if (upErr){ item.progressEl.style.width='0%'; showErr("Upload foto: "+upErr.message); return; }
+
+        item.progressEl.style.width = '60%';
+        const { data: pub } = supabase.storage.from('user-media').getPublicUrl(path);
+        const publicUrl = pub?.publicUrl;
+
+        const caption = (item.captionInput.value || '').trim() || null;
+        const { error: dbErr } = await supabase.from('user_photos').insert([{ user_id: user.id, image_path: publicUrl, caption }]);
+        if (dbErr){ item.progressEl.style.width='0%'; showErr("Salvataggio DB foto: "+dbErr.message); return; }
+
+        item.progressEl.style.width = '100%';
+      }
+      toast('Foto pubblicate');
+      closeUploadModal();
+      await loadGallery();
+    }
+
+    async function deletePhoto(photoId, imageUrl, tileEl){
+      try{
+        const u = new URL(imageUrl);
+        const parts = u.pathname.split('/');
+        const idx = parts.indexOf('user-media');
+        const rel = parts.slice(idx+1).join('/'); // <uid>/file.jpg
+        const { error: del1 } = await supabase.storage.from('user-media').remove([ rel ]);
+        if (del1) console.warn('Delete storage:', del1);
+      }catch(e){ console.warn('Parse URL storage fallita'); }
+
+      const { error: del2 } = await supabase.from('user_photos').delete().eq('id', photoId);
+      if (del2){ showErr("Eliminazione record: "+del2.message); return; }
+      tileEl.remove(); toast('Foto eliminata');
+    }
+  </script>
+</body>
+</html>
