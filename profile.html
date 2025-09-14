@@ -76,18 +76,13 @@
       background:#16161a;border:1px solid var(--border);border-radius:12px;padding:12px 14px;text-align:left}
     .drawer-nav .mitem.logout{background:#1a1112;border-color:#442325;color:#ffb3b3}
 
-    /* === VIEWER (zoom stile Instagram) — SEMPRE visibile barra commenti === */
+    /* === VIEWER (zoom) — desktop */
     .viewer{position:fixed;inset:0;display:none;z-index:90;background:rgba(0,0,0,.65)}
     .viewer .box{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;padding:16px;overflow:auto}
     .viewer .panel{
       width:min(1024px,100%); height:min(90vh,100%);
       background:#141417;border:1px solid var(--border);border-radius:16px;
       display:grid;grid-template-columns:minmax(0,1fr) 380px;overflow:hidden
-    }
-    @media(max-width:900px){
-      .viewer .panel{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-      .viewer .left{max-height:58vh}
-      .viewer .left img{max-height:58vh}
     }
     .viewer .left{background:#0b0b0f;display:grid;place-items:center;min-width:0;min-height:0}
     .viewer .left img{max-width:100%;max-height:100%;object-fit:contain;background:#0b0b0f}
@@ -104,31 +99,37 @@
     .viewer .newc{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);background:#141417}
     .viewer .newc input{flex:1;background:#0f0f12;border:1px solid var(--border);color:#fff;border-radius:12px;padding:10px}
 
-    /* === FIX viewer mobile + commenti larghi === */
+    /* === VIEWER — mobile full-screen e commenti larghi/ALTI === */
     @media (max-width: 700px){
+      .viewer{background:rgba(0,0,0,.85)}
+      .viewer .box{padding:0} /* bordi zero */
       .viewer .panel{
-        width:100%;
-        height:100%;
-        border-radius:0;
+        width:100%; height:100dvh; border-radius:0;
         grid-template-columns:1fr;
-        grid-template-rows:auto 1fr;
+        grid-template-rows:minmax(0,48dvh) minmax(0,1fr); /* foto ~48dvh, commenti il resto */
       }
-      .viewer .left{ max-height:58vh; }
-      .viewer .left img{ max-height:58vh; }
+      .viewer .left{height:48dvh}
+      .viewer .left img{max-height:48dvh}
+      .viewer .right{height:auto;min-height:52dvh}
+      .viewer .comments{min-height:38dvh}
+      .viewer .newc{position:sticky;bottom:0;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
     }
-    .viewer .comments > .comment{ width:100%; }
+    /* schermi molto bassi (es. vecchi iPhone SE) */
+    @media (max-height: 640px) and (max-width:700px){
+      .viewer .panel{ grid-template-rows:minmax(0,42dvh) minmax(0,1fr) }
+      .viewer .left{ height:42dvh }
+      .viewer .left img{ max-height:42dvh }
+      .viewer .comments{ min-height:40dvh }
+    }
+
+    /* dettagli commenti */
+    .viewer .comments > .comment{ width:100% }
     .comment .by{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
+      display:flex;align-items:center;justify-content:space-between;gap:10px
     }
     .btn.sm{ padding:4px 8px; font-size:12px }
     .comment .text{
-      font-size:15px;
-      line-height:1.45;
-      white-space:pre-wrap;
-      word-break:break-word;
+      font-size:15px; line-height:1.45; white-space:pre-wrap; word-break:break-word
     }
   </style>
 </head>
@@ -297,7 +298,7 @@
       qs('#meEmail').textContent = user.email;
       qs('#uidBadge').textContent = 'uid: ' + user.id;
 
-      // Listeners header + mobile drawer
+      // Header/menu
       qs('#logoutBtn').addEventListener('click', async () => { await supabase.auth.signOut(); location.href = 'auth.html'; });
       const hamburger = qs('#hamburger'); const overlay = qs('#mobileOverlay'); const drawer = qs('#mobileDrawer'); const closeBtn = qs('#closeDrawer');
       function openDrawer(){ overlay.classList.add('open'); drawer.classList.add('open'); hamburger.setAttribute('aria-expanded','true'); drawer.setAttribute('aria-hidden','false'); }
@@ -305,7 +306,7 @@
       hamburger.addEventListener('click', openDrawer); closeBtn.addEventListener('click', closeDrawer); overlay.addEventListener('click', closeDrawer);
       const logoutBtn2 = qs('#logoutBtn2'); if (logoutBtn2) logoutBtn2.addEventListener('click', async ()=>{ await supabase.auth.signOut(); location.href='auth.html'; });
 
-      // Toggle edit & form
+      // Edit profilo
       qs('#editToggle').addEventListener('click', toggleEdit);
       qs('#reloadBtn').addEventListener('click', loadProfile);
       qs('#saveBtn').addEventListener('click', onSave);
@@ -318,7 +319,7 @@
       qs('#cancelUpload').addEventListener('click', closeUploadModal);
       qs('#startUpload').addEventListener('click', startUpload);
 
-      // Viewer listeners
+      // Viewer
       qs('#closeViewer').addEventListener('click', closeViewer);
       qs('#likeBtn').addEventListener('click', toggleLike);
       qs('#sendComment').addEventListener('click', sendComment);
@@ -350,7 +351,6 @@
 
       const dn = data?.display_name || "Utente";
       const bio = data?.bio || "";
-      theParts = [];
       const parts = [];
       if (data?.age) parts.push(`Età: ${data.age}`);
       if (data?.location) parts.push(`Località: ${data.location}`);
@@ -371,7 +371,6 @@
       qs('#bio').value          = data?.bio ?? '';
     }
 
-    // === SALVA (avatar + dati) e CHIUDE pannello ===
     async function onSave(){
       clearErr();
       const saveBtn = qs('#saveBtn'); saveBtn.disabled = true;
@@ -471,7 +470,7 @@
       if (!currentPhoto) return;
       const pid = currentPhoto.id;
 
-      // conteggio like
+      // like
       const likeCountQ = await supabase.from('photo_likes').select('id', { head:true, count:'exact' }).eq('photo_id', pid);
       const countLikes = likeCountQ?.count ?? 0;
       qs('#likeCount').textContent = `${countLikes} like`;
@@ -483,7 +482,7 @@
       heart.classList.toggle('liked', liked);
       heart.textContent = liked ? '♥' : '♡';
 
-      // commenti (supporta sia body che content)
+      // commenti (supporta body|content)
       const { data: comments, error } = await supabase
         .from('photo_comments')
         .select('id, body, content, created_at, user_id')
@@ -536,7 +535,7 @@
       refreshViewer();
     }
 
-    // >>> INVIO COMMENTO: inserisce body e content (compatibilità con schema esistente)
+    // invio commento (scrive sia body che content)
     async function sendComment(){
       if (!currentPhoto) return;
       const input = qs('#commentInput');
@@ -564,7 +563,7 @@
 
     function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m])); }
 
-    // ======= MODALE UPLOAD (caption + progress) =======
+    // ======= MODALE UPLOAD =======
     function openUploadModal(e){
       chosenFiles = [];
       const files = e.target.files;
