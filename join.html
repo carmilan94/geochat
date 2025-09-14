@@ -6,18 +6,14 @@
   <title>GeoChat • Check-in</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233;}
-    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea;}
+    :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233}
+    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea}
     .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
     .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
     .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
     #map{height:360px}
   </style>
-  <!-- Google Maps -->
-  <script async
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=geometry&callback=initJoin">
-  </script>
-  <!-- Supabase -->
+  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=geometry&callback=initJoin"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -60,19 +56,22 @@
 
   let map, poly, meMarker, roomId, inside=false, hasFix=false, room;
 
-  // eseguita dal callback di Google Maps
   window.initJoin = async function(){
     const p = new URLSearchParams(location.search);
     roomId = p.get('room');
     if (!roomId){ location.replace('index.html'); return; }
 
-    // auth link
-    (async ()=>{
-      const { data:{session} } = await sb.auth.getSession();
-      const el = document.getElementById('authLink');
-      if (session){ el.textContent='Esci'; el.onclick=async(e)=>{e.preventDefault(); await sb.auth.signOut(); location.href='index.html'} }
-      else { el.textContent='Entra'; el.href='auth.html'; }
-    })();
+    // GATE: richiede login prima di tutto
+    const { data:{session} } = await sb.auth.getSession();
+    if (!session){
+      location.replace(`auth.html?next=${encodeURIComponent(location.pathname+location.search)}`);
+      return;
+    }
+
+    // header auth link
+    const el = document.getElementById('authLink');
+    el.textContent='Esci';
+    el.onclick=async(e)=>{e.preventDefault(); await sb.auth.signOut(); location.href='index.html'};
 
     // fetch stanza
     const { data, error } = await sb.from('rooms').select('*').eq('id',roomId).single();
@@ -83,52 +82,38 @@
     document.getElementById('roomAddr').textContent = room.address || '';
     document.getElementById('roomAddr').href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(room.address|| (room.center_lat+','+room.center_lng))}`;
 
-    map = new google.maps.Map(document.getElementById('map'),{
-      center:{lat:room.center_lat, lng:room.center_lng}, zoom:18, streetViewControl:false
-    });
+    map = new google.maps.Map(document.getElementById('map'),{ center:{lat:room.center_lat,lng:room.center_lng}, zoom:18, streetViewControl:false });
 
     // Poligono
     const path = (room.polygon?.coordinates?.[0]||[]).map(([lng,lat])=>({lat,lng}));
-    poly = new google.maps.Polygon({
-      paths:path, map, fillColor:'#00ff80', fillOpacity:.25, strokeColor:'#00ff80'
-    });
+    poly = new google.maps.Polygon({ paths:path, map, fillColor:'#00ff80', fillOpacity:.25, strokeColor:'#00ff80' });
 
-    // Richiedi posizione (fn riutilizzabile)
     const askPosition = ()=>{
       document.getElementById('stateLine').textContent='Verifico la tua posizione…';
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          hasFix = true;
-          const my = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          if (meMarker) meMarker.setMap(null);
-          meMarker = new google.maps.Marker({position:my, map, animation:'DROP'});
-          inside = google.maps.geometry.poly.containsLocation(new google.maps.LatLng(my.lat,my.lng), poly);
-          document.getElementById('stateLine').innerHTML = inside
-            ? 'Sei dentro al perimetro ✅'
-            : 'Sei fuori dal perimetro ❌';
-          // abilita bottone
-          const btn = document.getElementById('btnEnter');
-          btn.classList.remove('opacity-50','cursor-not-allowed');
-        },
-        _ => {
-          hasFix = false;
-          inside = false;
-          document.getElementById('stateLine').innerHTML='Posizione non disponibile ❔';
-        },
-        { enableHighAccuracy:true, maximumAge:0, timeout:10000 }
-      );
+      navigator.geolocation.getCurrentPosition(pos=>{
+        hasFix=true;
+        const my = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+        if (meMarker) meMarker.setMap(null);
+        meMarker = new google.maps.Marker({position:my, map, animation:'DROP'});
+        inside = google.maps.geometry.poly.containsLocation(new google.maps.LatLng(my.lat,my.lng), poly);
+        document.getElementById('stateLine').innerHTML = inside ? 'Sei dentro al perimetro ✅' : 'Sei fuori dal perimetro ❌';
+        const btn = document.getElementById('btnEnter');
+        btn.classList.remove('opacity-50','cursor-not-allowed');
+      }, _=>{
+        hasFix=false; inside=false;
+        document.getElementById('stateLine').innerHTML='Posizione non disponibile ❔';
+      }, { enableHighAccuracy:true, maximumAge:0, timeout:10000 });
     };
 
     askPosition();
     document.getElementById('btnRefresh').onclick = askPosition;
 
-    // Entra nella chat: CONSENTITO SOLO se ho fix e sono dentro
     document.getElementById('btnEnter').onclick = ()=>{
-      if (!hasFix){ alert('Posizione non disponibile. Attiva la geolocalizzazione.'); return; }
-      if (!inside){ alert('Devi essere DENTRO al perimetro per entrare.'); return; }
+      if (!hasFix){ alert('Posizione non disponibile.'); return; }
+      if (!inside){ alert('Devi essere DENTRO al perimetro.'); return; }
       location.href = `chat.html?room=${encodeURIComponent(roomId)}`;
     };
-  }
+  };
 </script>
 </body>
 </html>
