@@ -11,12 +11,34 @@
     /* Stato base dei pannelli */
     .panes #paneLogin  { display:block; }
     .panes #paneSignup { display:none;  }
-    /* Toggle SOLO con CSS tramite radio */
-    #tab-login:checked  ~ .tabs #lblLogin  { background:#0f172a; color:#fff; }
-    #tab-signup:checked ~ .tabs #lblSignup { background:#0f172a; color:#fff; }
+    /* Contenitore pill-bar */
+    .tabs{
+      display:flex; gap:.5rem;
+      background:#f1f5f9; /* slate-100 */
+      border:1px solid #e2e8f0; /* slate-200 */
+      border-radius:14px; padding:6px;
+    }
+    .tab-btn{
+      flex:1; text-align:center;
+      padding:.55rem .75rem; border-radius:10px;
+      font-weight:600; color:#475569; /* slate-600 */
+      cursor:pointer; user-select:none;
+      transition:background .2s, color .2s, box-shadow .2s;
+    }
+    .tab-btn:hover{ color:#0f172a; } /* slate-900 */
+    .tab-btn:focus-visible{ outline:2px solid #0ea5e9; outline-offset:2px; } /* sky-500 */
+
+    /* Attivo */
+    #tab-login:checked  ~ .tabs #lblLogin,
+    #tab-signup:checked ~ .tabs #lblSignup{
+      background:#ffffff;
+      color:#0f172a; /* slate-900 */
+      box-shadow:0 1px 2px rgba(0,0,0,.06), 0 1px 8px rgba(0,0,0,.04);
+    }
+
+    /* Switch dei pannelli */
     #tab-signup:checked ~ .panes #paneLogin  { display:none;  }
     #tab-signup:checked ~ .panes #paneSignup { display:block; }
-    .tab-btn { @apply py-2 rounded-lg border text-center cursor-pointer; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-900 flex items-center justify-center p-4">
@@ -29,10 +51,10 @@
       <input type="radio" name="tab" id="tab-login"  class="hidden" checked>
       <input type="radio" name="tab" id="tab-signup" class="hidden">
 
-      <!-- Bottoni tab -->
-      <div class="mt-4 grid grid-cols-2 gap-2 text-sm tabs">
-        <label for="tab-login"  id="lblLogin"  class="tab-btn">Accedi</label>
-        <label for="tab-signup" id="lblSignup" class="tab-btn">Registrati</label>
+      <!-- Pill Bar -->
+      <div class="mt-4 tabs">
+        <label for="tab-login"  id="lblLogin"  class="tab-btn" tabindex="0">Accedi</label>
+        <label for="tab-signup" id="lblSignup" class="tab-btn" tabindex="0">Registrati</label>
       </div>
 
       <!-- Pannelli -->
@@ -47,10 +69,10 @@
             <label class="text-sm">Password</label>
             <input id="lPassword" type="password" required minlength="6" class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="••••••" />
           </div>
-          <button id="btnLogin" type="submit" class="w-full py-2 rounded-lg bg-slate-900 text-white">Accedi</button>
+          <button id="btnLogin" type="submit" class="w-full py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition">Accedi</button>
         </form>
 
-        <!-- SIGNUP (niente 'hidden' qui) -->
+        <!-- SIGNUP -->
         <form id="paneSignup" class="mt-4 space-y-3">
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -74,7 +96,7 @@
             <label class="text-sm">Conferma password</label>
             <input id="sPassword2" type="password" required minlength="6" class="mt-1 w-full px-3 py-2 border rounded-lg" placeholder="••••••" />
           </div>
-          <button id="btnSignup" type="submit" class="w-full py-2 rounded-lg bg-emerald-600 text-white">Crea account</button>
+          <button id="btnSignup" type="submit" class="w-full py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition">Crea account</button>
         </form>
       </div>
 
@@ -82,7 +104,7 @@
       <p class="mt-2 text-center">
         <a href="/" class="text-sm text-slate-700 underline">Torna alla Home</a>
       </p>
-      <p class="text-center text-xs text-slate-400 mt-2">build: v6</p>
+      <p class="text-center text-xs text-slate-400 mt-2">build: v7</p>
     </div>
   </div>
 
