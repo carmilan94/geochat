@@ -10,6 +10,7 @@
     body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea;}
     .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
     .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
+    .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
     #map{height:360px}
   </style>
   <!-- Google Maps -->
@@ -39,12 +40,13 @@
 
     <div id="map" class="rounded-xl overflow-hidden my-4"></div>
 
-    <div id="stateLine" class="text-lg font-bold"></div>
+    <div id="stateLine" class="text-lg font-bold">In attesa della tua posizione…</div>
 
     <div class="mt-6 glass rounded-xl p-4">
       <p class="opacity-90">Per entrare devi essere <b>dentro</b> al perimetro del locale.</p>
       <div class="mt-3 flex items-center gap-3">
-        <button id="btnEnter" class="btn-main rounded-lg px-5 py-2">Entra nella chat</button>
+        <button id="btnEnter" class="btn-main rounded-lg px-5 py-2 opacity-50 cursor-not-allowed">Entra nella chat</button>
+        <button id="btnRefresh" class="chip rounded-lg px-4 py-2">Aggiorna posizione</button>
         <a href="index.html" class="chip rounded-lg px-4 py-2">Torna alla Home</a>
       </div>
     </div>
@@ -56,8 +58,9 @@
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  let map, poly, meMarker, roomId, inside=false, room;
+  let map, poly, meMarker, roomId, inside=false, hasFix=false, room;
 
+  // eseguita dal callback di Google Maps
   window.initJoin = async function(){
     const p = new URLSearchParams(location.search);
     roomId = p.get('room');
@@ -71,7 +74,7 @@
       else { el.textContent='Entra'; el.href='auth.html'; }
     })();
 
-    // fetch room
+    // fetch stanza
     const { data, error } = await sb.from('rooms').select('*').eq('id',roomId).single();
     if (error || !data){ alert('Stanza non trovata.'); location.replace('index.html'); return; }
     room = data;
@@ -84,27 +87,45 @@
       center:{lat:room.center_lat, lng:room.center_lng}, zoom:18, streetViewControl:false
     });
 
-    // poligono
+    // Poligono
     const path = (room.polygon?.coordinates?.[0]||[]).map(([lng,lat])=>({lat,lng}));
     poly = new google.maps.Polygon({
       paths:path, map, fillColor:'#00ff80', fillOpacity:.25, strokeColor:'#00ff80'
     });
 
-    // mia posizione
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        const my = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        meMarker = new google.maps.Marker({position:my, map, animation:'DROP'});
-        inside = google.maps.geometry.poly.containsLocation(new google.maps.LatLng(my.lat,my.lng), poly);
-        document.getElementById('stateLine').innerHTML = inside
-          ? 'Sei dentro al perimetro ✅'
-          : 'Sei fuori dal perimetro ❌';
-      },
-      _ => { document.getElementById('stateLine').innerHTML = 'Posizione non disponibile ❔'; }
-    );
+    // Richiedi posizione (fn riutilizzabile)
+    const askPosition = ()=>{
+      document.getElementById('stateLine').textContent='Verifico la tua posizione…';
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          hasFix = true;
+          const my = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          if (meMarker) meMarker.setMap(null);
+          meMarker = new google.maps.Marker({position:my, map, animation:'DROP'});
+          inside = google.maps.geometry.poly.containsLocation(new google.maps.LatLng(my.lat,my.lng), poly);
+          document.getElementById('stateLine').innerHTML = inside
+            ? 'Sei dentro al perimetro ✅'
+            : 'Sei fuori dal perimetro ❌';
+          // abilita bottone
+          const btn = document.getElementById('btnEnter');
+          btn.classList.remove('opacity-50','cursor-not-allowed');
+        },
+        _ => {
+          hasFix = false;
+          inside = false;
+          document.getElementById('stateLine').innerHTML='Posizione non disponibile ❔';
+        },
+        { enableHighAccuracy:true, maximumAge:0, timeout:10000 }
+      );
+    };
 
+    askPosition();
+    document.getElementById('btnRefresh').onclick = askPosition;
+
+    // Entra nella chat: CONSENTITO SOLO se ho fix e sono dentro
     document.getElementById('btnEnter').onclick = ()=>{
-      // anche se non dentro, lascio il controllo alla policy app (qui solo UX)
+      if (!hasFix){ alert('Posizione non disponibile. Attiva la geolocalizzazione.'); return; }
+      if (!inside){ alert('Devi essere DENTRO al perimetro per entrare.'); return; }
       location.href = `chat.html?room=${encodeURIComponent(roomId)}`;
     };
   }
