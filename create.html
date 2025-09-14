@@ -1,332 +1,181 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>GeoChat • Crea chat</title>
-
-  <!-- Tailwind per MVP -->
   <script src="https://cdn.tailwindcss.com"></script>
-
   <style>
-    .app-gradient { background: linear-gradient(135deg, #ff7a18 0%, #0b0b0b 55%); }
-    .glass { background: rgba(255,255,255,0.06); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.08); }
-    #map { height: 480px; }
-    .gm-control-btn { background:#fff;border:1px solid #e5e7eb;border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,.1); }
+    :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233;}
+    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea;}
+    .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
+    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
+    .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+    #map{height:420px}
   </style>
-
-  <!-- QRCode -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Google Maps -->
+  <script async
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=places,geometry,drawing&callback=initMap">
+  </script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="min-h-screen text-slate-100 app-gradient">
+<body>
+<header class="w-full py-4 px-5 flex items-center justify-between">
+  <div class="flex items-center gap-2">
+    <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-bold text-black">GC</div>
+    <div class="font-extrabold text-xl">GeoChat</div>
+  </div>
+  <nav class="flex items-center gap-3 text-sm">
+    <a href="index.html" class="chip px-3 py-1.5 rounded-lg">Home</a>
+    <a href="create.html" class="btn-main px-3 py-1.5 rounded-lg">Crea la tua chat</a>
+    <a href="admin.html" class="chip px-3 py-1.5 rounded-lg">Admin</a>
+    <a id="authLink" href="auth.html" class="chip px-3 py-1.5 rounded-lg">Entra</a>
+  </nav>
+</header>
 
-  <!-- Topbar -->
-  <header class="sticky top-0 z-20 glass">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-      <a href="/" class="text-xl font-bold tracking-wide">GeoChat</a>
-      <span class="text-sm text-amber-300/80">MVP • Supabase + Google Maps</span>
+<main class="max-w-6xl mx-auto px-4 pb-24 grid md:grid-cols-3 gap-6">
+  <section class="md:col-span-2 glass rounded-2xl p-5">
+    <h2 class="text-lg font-bold mb-3">1) Cerca indirizzo/attività & disegna il perimetro</h2>
 
-      <nav class="ms-auto flex items-center gap-4">
-        <a href="/" class="text-slate-200 hover:text-white">Home</a>
-        <span class="px-3 py-1 rounded-lg bg-amber-500 text-black font-medium">Crea chat</span>
-        <a href="/admin.html" class="text-slate-200/80 hover:text-white">Admin</a>
-
-        <span id="userEmail" class="hidden text-sm text-slate-300 ml-3"></span>
-        <button id="btnLogout" class="hidden ml-2 px-3 py-1 rounded-lg bg-slate-900/70 hover:bg-slate-900">
-          Esci
-        </button>
-      </nav>
+    <div class="flex gap-2 mb-3">
+      <input id="placeInput" class="flex-1 chip rounded-lg px-3 py-2" placeholder="Via/locale (es. Pizzeria Da Mario)" />
+      <button id="btnSearch" class="chip rounded-lg px-4">Cerca</button>
     </div>
-  </header>
 
-  <!-- Contenuto -->
-  <main id="app" class="max-w-6xl mx-auto px-4 py-6 hidden">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <!-- Colonna mappa -->
-      <section class="md:col-span-2 glass rounded-2xl p-4">
-        <h2 class="text-lg font-semibold mb-3">1) Cerca indirizzo/attività & disegna il perimetro</h2>
-
-        <div class="grid grid-cols-3 gap-2 mb-3">
-          <input id="placeName" type="text" class="col-span-1 px-3 py-2 rounded-lg bg-white/10 border border-white/10 focus:outline-none focus:ring"
-                 placeholder="Nome del locale (es. Bar Centrale)">
-          <div class="col-span-1 flex gap-2">
-            <input id="addressInput" type="text" class="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/10 focus:outline-none focus:ring"
-                   placeholder="Via + civico, Città, Italia">
-          </div>
-          <button id="btnSearch" class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20">Cerca</button>
-        </div>
-
-        <div class="mb-3 flex items-center gap-2 text-sm">
-          <span class="text-slate-300">Strumenti:</span>
-          <button id="btnDraw"    class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20">✏️ Disegna</button>
-          <button id="btnEdit"    class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20">🛠️ Modifica</button>
-          <button id="btnDelete"  class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20">🗑️ Elimina</button>
-        </div>
-
-        <div id="map" class="rounded-xl overflow-hidden border border-white/10"></div>
-
-        <p class="text-sm text-slate-300 mt-3">
-          Disegna un <b>poligono</b> attorno al locale. Per rimuovere un vertice: click destro su quel punto.
-        </p>
-      </section>
-
-      <!-- Colonna destra -->
-      <aside class="glass rounded-2xl p-4">
-        <h2 class="text-lg font-semibold">2) Dettagli & crea link/QR</h2>
-        <label class="block text-sm mt-3 mb-1 text-slate-300">Descrizione (opzionale)</label>
-        <textarea id="venueDesc" rows="4" class="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/10 focus:outline-none focus:ring"
-                  placeholder="Es. Chat del Bar Centrale solo per chi è dentro il locale"></textarea>
-
-        <button id="btnCreate" class="w-full mt-4 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-black font-semibold">
-          Crea chat & genera QR
-        </button>
-
-        <div id="resultBox" class="hidden mt-6 glass rounded-xl p-4">
-          <div class="text-sm text-slate-300">Link di accesso:</div>
-          <input id="roomLink" readonly class="mt-2 w-full px-3 py-2 rounded-lg bg-white/10 border border-white/10" />
-          <div class="mt-4 grid grid-cols-1 place-items-center">
-            <div id="qrBox"></div>
-            <button id="btnDownloadQr" class="mt-3 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20">
-              Scarica QR
-            </button>
-          </div>
-        </div>
-      </aside>
+    <div class="flex gap-2 mb-3">
+      <button id="drawBtn" class="chip px-3 py-1.5 rounded-lg">✏️ Disegna</button>
+      <button id="editBtn" class="chip px-3 py-1.5 rounded-lg">✂️ Modifica</button>
+      <button id="clearBtn" class="chip px-3 py-1.5 rounded-lg">🗑️ Elimina</button>
     </div>
-  </main>
 
-  <!-- ===============  SCRIPT  =============== -->
+    <div id="map" class="rounded-xl overflow-hidden"></div>
+    <p class="mt-2 text-xs opacity-70">Disegna un <b>poligono</b> intorno al locale. Per rimuovere un vertice: click destro su quel punto.</p>
+  </section>
 
-  <!-- Supabase + Auth guard -->
-  <script>
-  (async () => {
-    const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
+  <aside class="glass rounded-2xl p-5">
+    <h2 class="text-lg font-bold mb-3">2) Dettagli & link/QR</h2>
 
-    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    <label class="text-sm block mb-1 opacity-80">Descrizione (opzionale)</label>
+    <textarea id="desc" class="w-full chip rounded-lg p-3 h-28 mb-3"
+      placeholder="Es. Chat del Bar Centrale solo per chi è dentro il locale"></textarea>
 
-    // Auth guard
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      const back = encodeURIComponent(location.href);
-      location.href = `/auth.html?redirect=${back}`;
-      return;
+    <button id="createBtn" class="btn-main w-full rounded-lg py-2.5">Crea chat & genera QR</button>
+
+    <div id="qrWrap" class="hidden mt-5 text-center">
+      <h3 class="font-bold mb-2">QR della stanza</h3>
+      <img id="qrImg" class="inline-block rounded-lg" alt="QR" />
+      <div class="mt-2 text-xs break-all opacity-80" id="roomLink"></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+  // ---- CONFIG
+  const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  // auth link
+  (async ()=>{
+    const { data: { session } } = await sb.auth.getSession();
+    const link = document.getElementById('authLink');
+    if (session){
+      link.textContent = 'Esci';
+      link.onclick = async (e)=>{ e.preventDefault(); await sb.auth.signOut(); location.href='index.html'; }
+    } else {
+      link.textContent = 'Entra';
+      link.href = 'auth.html';
     }
+  })();
 
-    // Navbar info + logout
-    document.getElementById('userEmail').textContent = session.user.email || '';
-    document.getElementById('userEmail').classList.remove('hidden');
-    const btnLogout = document.getElementById('btnLogout');
-    btnLogout.classList.remove('hidden');
-    btnLogout.addEventListener('click', async () => {
-      await supabase.auth.signOut();
-      location.href = '/auth.html';
+  let map, marker, drawingManager, polygon=null, searchBox;
+
+  window.initMap = function(){
+    map = new google.maps.Map(document.getElementById('map'),{
+      center:{lat:41.9028,lng:12.4964}, zoom:14, streetViewControl:false, mapTypeControl:true
     });
 
-    document.getElementById('app').classList.remove('hidden');
+    // Disegno
+    drawingManager = new google.maps.drawing.DrawingManager({
+      drawingMode: null,
+      drawingControl:false,
+      polygonOptions: { editable:true, fillColor:'#00ff80', fillOpacity:.25, strokeColor:'#00ff80' }
+    });
+    drawingManager.setMap(map);
+    google.maps.event.addListener(drawingManager,'polygoncomplete',poly=>{
+      if (polygon) polygon.setMap(null);
+      polygon = poly;
+    });
 
-    // espongo in globale per initMap
-    window.supabase = supabase;
-    window.currentUser = session.user;
-  })();
-  </script>
-
-  <!-- Google Maps (async defer) -->
-  <script>
-    // Variabili mappa/poligono
-    let map, drawingManager, activePolygon = null;
-    let searchMarker = null;
-    let autocomplete = null;
-    let geocoder = null;
-
-    // Helpers
-    function shortId(len = 8) {
-      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-      let out = '';
-      for (let i=0;i<len;i++) out += chars[Math.floor(Math.random()*chars.length)];
-      return out;
-    }
-
-    function polygonBoundsCenter(poly) {
-      const bounds = new google.maps.LatLngBounds();
-      poly.getPath().forEach(p => bounds.extend(p));
-      return bounds.getCenter();
-    }
-
-    function polygonToGeoJSON(poly) {
-      const path = poly.getPath();
-      const coords = [];
-      for (let i=0;i<path.getLength();i++) {
-        const p = path.getAt(i);
-        coords.push([p.lng(), p.lat()]);
-      }
-      // chiudi il poligono
-      if (coords.length > 2) coords.push(coords[0]);
-      return { type:"Polygon", coordinates:[ coords ] };
-    }
-
-    // PIN di ricerca
-    function dropSearchPin(latLng) {
+    // Cerca
+    const input = document.getElementById('placeInput');
+    const ac = new google.maps.places.Autocomplete(input);
+    ac.addListener('place_changed',()=>{
+      const place = ac.getPlace();
+      if (!place.geometry) return;
+      map.panTo(place.geometry.location);
       map.setZoom(18);
-      map.panTo(latLng);
-      if (!searchMarker) {
-        searchMarker = new google.maps.Marker({
-          map,
-          position: latLng,
-          animation: google.maps.Animation.DROP
-        });
-      } else {
-        searchMarker.setPosition(latLng);
-        searchMarker.setAnimation(google.maps.Animation.DROP);
-      }
-    }
+      if (marker) marker.setMap(null);
+      marker = new google.maps.Marker({position:place.geometry.location, map, animation:'DROP'});
+    });
+    document.getElementById('btnSearch').onclick = ()=> google.maps.event.trigger(ac,'place_changed');
 
-    // INIT MAP
-    function initMap() {
-      // centro “di default” (Italia)
-      map = new google.maps.Map(document.getElementById('map'), {
-        center: { lat: 41.902782, lng: 12.496366 },
-        zoom: 12,
-        mapId: '4504f8b37365c3d0'
-      });
+    // toolbar
+    document.getElementById('drawBtn').onclick = ()=> drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+    document.getElementById('editBtn').onclick = ()=> { if (polygon) polygon.setEditable(true); }
+    document.getElementById('clearBtn').onclick = ()=> { if (polygon){ polygon.setMap(null); polygon=null; } if (marker){ marker.setMap(null); marker=null; } };
+  }
 
-      geocoder = new google.maps.Geocoder();
+  // Crea stanza
+  document.getElementById('createBtn').onclick = async ()=>{
+    if (!polygon){ alert('Disegna prima il perimetro.'); return; }
 
-      // Prova a centrare su posizione utente
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          pos => {
-            const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            map.setCenter(ll); map.setZoom(14);
-          },
-          () => {}
-        );
-      }
+    // centro
+    const bounds = new google.maps.LatLngBounds();
+    polygon.getPath().forEach(p=>bounds.extend(p));
+    const center = bounds.getCenter();
 
-      // Autocomplete sull'indirizzo
-      const addressInput = document.getElementById('addressInput');
-      autocomplete = new google.maps.places.Autocomplete(addressInput, {
-        fields: ['geometry','name','formatted_address']
-      });
-      autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace();
-        if (place?.geometry?.location) {
-          dropSearchPin(place.geometry.location);
-        }
-      });
+    // geojson
+    const coords = [];
+    polygon.getPath().forEach(p=> coords.push([p.lng(), p.lat()]) );
+    if (coords.length && (coords[0][0]!==coords.at(-1)[0] || coords[0][1]!==coords.at(-1)[1])) coords.push(coords[0]);
+    const geojson = { type:'Polygon', coordinates:[coords] };
 
-      // Cerca -> geocoding testuale
-      const btnSearch = document.getElementById('btnSearch');
-      btnSearch.addEventListener('click', () => {
-        const q = addressInput.value.trim();
-        if (!q) return;
-        geocoder.geocode({ address: q, componentRestrictions: { country: 'IT' } }, (results, status) => {
-          if (status === 'OK' && results && results[0]) {
-            dropSearchPin(results[0].geometry.location);
-          } else {
-            alert('Indirizzo non trovato. Riprova: via + civico + città.');
-          }
-        });
-      });
+    // indirizzo dal marker o dal centro
+    let address = '';
+    const geocoder = new google.maps.Geocoder();
+    const latlng = marker ? marker.getPosition() : center;
+    try{
+      const res = await geocoder.geocode({location:latlng});
+      address = res?.results?.[0]?.formatted_address || '';
+    }catch{}
 
-      // Drawing Manager (solo poligono)
-      drawingManager = new google.maps.drawing.DrawingManager({
-        drawingMode: null,
-        drawingControl: false,
-        polygonOptions: {
-          fillColor: '#10b981',
-          fillOpacity: 0.2,
-          strokeColor: '#10b981',
-          strokeWeight: 2,
-          editable: true
-        }
-      });
-      drawingManager.setMap(map);
+    // nome automatico se non specificato
+    const name = document.getElementById('placeInput').value.trim() || 'Chat locale';
 
-      google.maps.event.addListener(drawingManager, 'overlaycomplete', e => {
-        if (e.type === google.maps.drawing.OverlayType.POLYGON) {
-          if (activePolygon) activePolygon.setMap(null);
-          activePolygon = e.overlay;
-          drawingManager.setDrawingMode(null);
+    const { data, error } = await sb.from('rooms').insert({
+      id: crypto.randomUUID().slice(0,8),
+      name,
+      description: document.getElementById('desc').value.trim(),
+      address,
+      polygon: geojson,
+      center_lat: center.lat(),
+      center_lng: center.lng()
+    }).select('id').single();
 
-          // click destro per rimuovere vertice
-          google.maps.event.addListener(activePolygon.getPath(), 'rightclick', function(evt) {
-            if (evt.vertex != null) this.removeAt(evt.vertex);
-          });
-        }
-      });
+    if (error){ console.error(error); alert('Impossibile creare la chat.'); return; }
 
-      // Bottoni strumenti
-      document.getElementById('btnDraw').addEventListener('click', () => {
-        drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
-      });
-      document.getElementById('btnEdit').addEventListener('click', () => {
-        if (activePolygon) activePolygon.setEditable(true);
-      });
-      document.getElementById('btnDelete').addEventListener('click', () => {
-        if (activePolygon) { activePolygon.setMap(null); activePolygon = null; }
-      });
+    const link = `${location.origin}/join.html?room=${encodeURIComponent(data.id)}`;
 
-      // Crea chat
-      document.getElementById('btnCreate').addEventListener('click', createRoom);
-    }
+    // QR rapido via servizio
+    document.getElementById('roomLink').textContent = link;
+    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(link)}`;
+    const img = document.getElementById('qrImg'); img.src = qr; img.alt = 'QR stanza';
+    document.getElementById('qrWrap').classList.remove('hidden');
 
-    async function createRoom() {
-      const name = (document.getElementById('placeName').value || '').trim();
-      const address = (document.getElementById('addressInput').value || '').trim();
-      const desc = (document.getElementById('venueDesc').value || '').trim();
-
-      if (!activePolygon) { alert('Disegna prima il perimetro sulla mappa.'); return; }
-
-      // Centro: dal poligono, altrimenti dal marker di ricerca
-      let center = polygonBoundsCenter(activePolygon);
-      if (!center && searchMarker) center = searchMarker.getPosition();
-
-      const geojson = polygonToGeoJSON(activePolygon);
-      const roomId = shortId(8);
-
-      const payload = {
-        id: roomId,
-        name: name || (address || 'Locale senza nome'),
-        description: desc || null,
-        address: address || null,
-        polygon: geojson,
-        center_lat: center.lat(),
-        center_lng: center.lng(),
-        created_by: (window.currentUser && window.currentUser.id) || null
-      };
-
-      // Salvataggio
-      const { data, error } = await window.supabase.from('rooms').insert(payload).select().single();
-      if (error) { console.error(error); alert('Errore creazione stanza.'); return; }
-
-      // Mostra link & QR
-      const link = `${location.origin}/?room=${roomId}`;
-      document.getElementById('roomLink').value = link;
-
-      const qrBox = document.getElementById('qrBox');
-      qrBox.innerHTML = '';
-      const qr = new QRCode(qrBox, { text: link, width: 220, height: 220 });
-      document.getElementById('resultBox').classList.remove('hidden');
-
-      // download QR
-      document.getElementById('btnDownloadQr').onclick = () => {
-        const img = qrBox.querySelector('img') || qrBox.querySelector('canvas');
-        if (!img) return;
-        const a = document.createElement('a');
-        a.href = img.src || img.toDataURL('image/png');
-        a.download = `geochat-${roomId}.png`;
-        a.click();
-      };
-
-      alert('Chat creata! Scansiona il QR o usa il link generato.');
-    }
-  </script>
-
-  <!-- Caricamento Maps con Places/Drawing/Geometry -->
-  <script
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=places,drawing,geometry&callback=initMap&loading=async"
-    async defer></script>
+    alert('Stanza creata! Scannerizza il QR o apri il link per il check-in.');
+  };
+</script>
 </body>
 </html>
