@@ -32,6 +32,12 @@
         <a id="navCreate" href="#" class="text-slate-700 hover:text-slate-900">Crea chat</a>
         <a id="navJoin" href="#" class="text-slate-500 hover:text-slate-900">Entra</a>
         <a href="admin.html" class="text-slate-500 hover:text-slate-900">Admin</a>
+
+        <!-- utente + logout -->
+        <span id="userEmail" class="hidden text-sm text-slate-500 ml-4"></span>
+        <button id="btnLogout" class="hidden ml-2 px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700">
+          Esci
+        </button>
       </nav>
     </div>
   </header>
@@ -39,7 +45,6 @@
   <!-- APP (nascosta finché non validiamo la sessione) -->
   <main id="app" class="max-w-6xl mx-auto px-4 py-6 hidden">
 
-    <!-- JOIN strip (spiegazione) -->
     <div id="authStrip" class="mb-4 px-3 py-2 rounded-xl bg-amber-50 text-amber-800 hidden">
       Devi essere registrato per creare o entrare in una chat.
     </div>
@@ -47,7 +52,6 @@
     <!-- CREA CHAT -->
     <section id="createSection" class="space-y-6">
       <div class="grid md:grid-cols-3 gap-4">
-        <!-- sinistra -->
         <div class="md:col-span-2 bg-white rounded-2xl shadow p-4">
           <h2 class="text-lg font-semibold mb-3">1) Cerca indirizzo/attività & disegna il perimetro</h2>
 
@@ -72,7 +76,6 @@
           </p>
         </div>
 
-        <!-- destra -->
         <div class="md:col-span-1 bg-white rounded-2xl shadow p-4">
           <h3 class="text-lg font-semibold mb-3">2) Dettagli & crea link/QR</h3>
 
@@ -132,11 +135,26 @@
     window.supabase = supabase;
     window.currentUser = session.user;
 
+    // UI: mostra email + tasto logout
+    const emailSpan = document.getElementById('userEmail');
+    const btnLogout = document.getElementById('btnLogout');
+    if (emailSpan) {
+      emailSpan.textContent = session.user.email || '';
+      emailSpan.classList.remove('hidden');
+    }
+    if (btnLogout) {
+      btnLogout.classList.remove('hidden');
+      btnLogout.addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        location.href = '/auth.html';
+      });
+    }
+
     // Mostra app
     document.getElementById('app')?.classList.remove('hidden');
 
     // Avvia UI e mappa
-    initUi(); // toggle tab ecc.
+    initUi();
   })();
   </script>
 
@@ -163,7 +181,6 @@
       try{ localStorage.setItem('gc_tab', tab);}catch(e){}
     }
 
-    // Avvio su "create" (o riprende preferenza)
     const urlTab = new URL(location.href).searchParams.get('tab');
     const saved  = localStorage.getItem('gc_tab');
     show(urlTab || saved || 'create');
@@ -171,23 +188,17 @@
     navCreate?.addEventListener('click', (e)=>{ e.preventDefault(); show('create'); });
     navJoin?.addEventListener('click',   (e)=>{ e.preventDefault(); show('join'); });
 
-    // Copy link
     document.getElementById('btnCopyLink')?.addEventListener('click', () => {
       const val = document.getElementById('chatLink').value;
-      navigator.clipboard.writeText(val).then(() => {
-        alert('Link copiato!');
-      });
+      navigator.clipboard.writeText(val).then(() => alert('Link copiato!'));
     });
 
-    // Download QR
     document.getElementById('btnDownloadQR')?.addEventListener('click', () => {
       const canvas = document.querySelector('#qrBox canvas');
       if (!canvas) return;
       const url = canvas.toDataURL('image/png');
       const a = document.createElement('a');
-      a.href = url;
-      a.download = 'geochat-qr.png';
-      a.click();
+      a.href = url; a.download = 'geochat-qr.png'; a.click();
     });
   }
   </script>
@@ -206,7 +217,6 @@
       fullscreenControl: false
     });
 
-    // Autocomplete (campo indirizzo)
     const input = document.getElementById('inAddress');
     autocomplete = new google.maps.places.Autocomplete(input, { types: ['geocode'] });
     autocomplete.addListener('place_changed', () => {
@@ -217,7 +227,6 @@
       }
     });
 
-    // Drawing
     drawingManager = new google.maps.drawing.DrawingManager({
       drawingMode: null,
       drawingControl: false,
@@ -236,7 +245,6 @@
       currentPolygon = poly;
     });
 
-    // Bottoni strumenti
     document.getElementById('btnDraw')?.addEventListener('click', () => {
       drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
     });
@@ -249,7 +257,6 @@
       drawingManager.setDrawingMode(null);
     });
 
-    // Cerca indirizzo via bottone
     document.getElementById('btnSearch')?.addEventListener('click', () => {
       const addr = document.getElementById('inAddress').value.trim();
       if (!addr) return;
@@ -261,7 +268,6 @@
       });
     });
 
-    // Crea chat -> salva su Supabase
     document.getElementById('btnCreateChat')?.addEventListener('click', async () => {
       const name = document.getElementById('inVenueName').value.trim();
       const address = document.getElementById('inAddress').value.trim();
@@ -274,15 +280,12 @@
       const path = currentPolygon.getPath().getArray();
       if (path.length < 3) { alert('Il poligono deve avere almeno 3 punti.'); return; }
 
-      // GeoJSON Polygon
       const coords = [ path.map(p => [p.lng(), p.lat()]) ];
-      // Chiudi poligono se necessario
       const first = coords[0][0], last = coords[0][coords[0].length - 1];
       if (first[0] !== last[0] || first[1] !== last[1]) coords[0].push(first);
 
       const center = currentPolygon.getBounds().getCenter();
-
-      const id = Math.random().toString(36).slice(2,10); // id breve
+      const id = Math.random().toString(36).slice(2,10);
 
       const payload = {
         id,
@@ -311,7 +314,6 @@
       document.getElementById('chatLink').value = link;
       document.getElementById('resultBox').classList.remove('hidden');
 
-      // QR
       const qrBox = document.getElementById('qrBox');
       qrBox.innerHTML = '';
       new QRCode(qrBox, { text: link, width: 160, height: 160 });
@@ -319,11 +321,10 @@
     });
   }
 
-  // Esporta globale per callback di Google
   window.initMap = initMap;
   </script>
 
-  <!-- Google Maps JS (Places + Drawing + Geometry) -->
+  <!-- Google Maps JS -->
   <script
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=places,drawing,geometry&callback=initMap"
     async defer></script>
