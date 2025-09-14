@@ -6,61 +6,47 @@
   <title>GeoChat • Home</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233;}
-    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea;}
+    :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233}
+    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea}
     .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
-    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
     .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
-    a,button{outline:0}
+    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
   </style>
-  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="min-h-screen">
+<body>
 <header class="w-full py-4 px-5 flex items-center justify-between">
   <div class="flex items-center gap-2">
     <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-bold text-black">GC</div>
     <div class="font-extrabold text-xl">GeoChat</div>
   </div>
   <nav class="flex items-center gap-3 text-sm">
-    <a href="index.html" class="chip px-3 py-1.5 rounded-lg">Home</a>
     <a href="create.html" class="chip px-3 py-1.5 rounded-lg">Crea la tua chat</a>
-    <a href="admin.html" class="chip px-3 py-1.5 rounded-lg">Admin</a>
-    <a id="authLink" href="auth.html" class="btn-main px-4 py-1.5 rounded-lg">Entra</a>
+    <a id="authLink" href="auth.html" class="chip px-3 py-1.5 rounded-lg">Entra</a>
   </nav>
 </header>
 
-<main class="max-w-4xl mx-auto px-4 pb-20">
-  <section class="glass rounded-2xl p-5 mb-6">
-    <h2 class="text-xl font-bold mb-2">Chat vicino a te</h2>
-    <p class="text-sm opacity-80">Vedi le chat disponibili, la distanza e apri le indicazioni con Google Maps.</p>
-    <div class="mt-4 flex items-center gap-3">
-      <button id="btnGeo" class="chip px-4 py-2 rounded-lg flex items-center gap-2">
-        <span>📍</span><span>Usa la mia posizione</span>
-      </button>
-      <div id="geoState" class="text-xs opacity-80">Posizione non disponibile (lista non ordinata).</div>
+<main class="max-w-4xl mx-auto px-4 pb-24">
+  <div class="glass rounded-2xl p-5 mb-4">
+    <h1 class="text-2xl font-extrabold mb-2">Chat vicino a te</h1>
+    <p class="opacity-85">Vedi le chat disponibili, la distanza (se concedi la posizione) e apri le indicazioni.</p>
+    <div class="mt-3 flex items-center gap-3">
+      <button id="btnLocate" class="chip px-4 py-2 rounded-lg">📍 Usa la mia posizione</button>
+      <span id="locState" class="opacity-70 text-sm">Posizione non disponibile</span>
     </div>
-  </section>
+  </div>
 
-  <section id="roomsList" class="grid gap-4"></section>
+  <div id="list" class="grid gap-4"></div>
 </main>
 
 <script>
-  // ---- CONFIG SUPABASE
   const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  // 1) Se arrivo con ?room=XXXX reindirizzo SUBITO a join.html
-  (function autoRedirectToJoin(){
-    const p = new URLSearchParams(location.search);
-    const r = p.get('room');
-    if (r) location.replace(`join.html?room=${encodeURIComponent(r)}`);
-  })();
-
-  // 2) Stato auth: mostra "Esci" se loggato
-  async function setAuthLink(){
-    const { data: { session } } = await sb.auth.getSession();
+  // header auth button
+  (async ()=>{
+    const { data:{session} } = await sb.auth.getSession();
     const link = document.getElementById('authLink');
     if (session){
       link.textContent = 'Esci';
@@ -68,84 +54,91 @@
     } else {
       link.textContent = 'Entra';
       link.href = 'auth.html';
-      link.onclick = null;
     }
-  }
-  setAuthLink();
+  })();
 
-  // 3) Carico rooms
-  let myPos = null;
-  document.getElementById('btnGeo').onclick = ()=>{
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        document.getElementById('geoState').textContent = 'Posizione attiva: le distanze saranno calcolate (se possibile).';
-        renderRooms();
-      },
-      _ => { alert('Impossibile ottenere la posizione.'); }
-    );
-  }
-
-  async function fetchRooms(){
-    const { data, error } = await sb.from('rooms')
-      .select('id,name,description,address,center_lat,center_lng,created_at')
-      .order('created_at',{ascending:false});
-    if (error){ console.error(error); return []; }
-    return data || [];
-  }
-
-  function distanceKm(a,b){
-    const R=6371; const dLat=(b.lat-a.lat)*Math.PI/180; const dLng=(b.lng-a.lng)*Math.PI/180;
-    const s1=Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
-    return 2*R*Math.asin(Math.sqrt(s1));
-  }
-
-  async function renderRooms(){
-    const cont = document.getElementById('roomsList');
-    cont.innerHTML = '<div class="opacity-60">Carico…</div>';
-    let rooms = await fetchRooms();
-
-    // se ho posizione, ordino per distanza
-    if (myPos){
-      rooms = rooms.map(r => ({...r, _dist: distanceKm(myPos,{lat:r.center_lat,lng:r.center_lng}) }))
-                   .sort((a,b)=> a._dist-b._dist);
+  // helper: se non loggato → vai a login con next
+  async function requireAuthOrRedirect(nextUrl){
+    const { data:{session} } = await sb.auth.getSession();
+    if (!session){
+      location.href = `auth.html?next=${encodeURIComponent(nextUrl)}`;
+      return false;
     }
+    return true;
+  }
 
-    cont.innerHTML = '';
-    if (!rooms.length){
-      cont.innerHTML = '<div class="glass rounded-xl p-5 opacity-80">Nessuna stanza trovata.</div>';
-      return;
-    }
+  // carica stanze
+  let myPos=null;
+  loadRooms();
 
-    for (const r of rooms){
-      const dTxt = myPos ? `${r._dist.toFixed(1)} km` : 'distanza sconosciuta';
+  async function loadRooms(){
+    const { data, error } = await sb.from('rooms').select('*').order('created_at',{ascending:false}).limit(100);
+    if (error){ console.error(error); return; }
+
+    const container = document.getElementById('list');
+    container.innerHTML = '';
+
+    (data||[]).forEach(r=>{
+      const dist = (myPos && r.center_lat && r.center_lng)
+        ? haversine(myPos.lat,myPos.lng, r.center_lat,r.center_lng).toFixed(1)+' km'
+        : 'distanza sconosciuta';
+
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address || (r.center_lat+','+r.center_lng))}`;
+
       const card = document.createElement('div');
-      card.className='glass rounded-xl p-5 flex flex-col gap-3';
+      card.className='glass rounded-2xl p-4 flex flex-col gap-3';
       card.innerHTML = `
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-lg bg-amber-500 text-black font-bold flex items-center justify-center">GC</div>
-            <div>
-              <div class="font-bold text-lg">${r.name || 'Senza nome'}</div>
-              <div class="text-xs opacity-80">Distanza: ${dTxt}</div>
-            </div>
-          </div>
-          <span class="chip px-3 py-1 rounded-lg text-xs">Attiva</span>
+          <div class="font-bold text-lg">${escapeHtml(r.name||'Chat')}</div>
+          <span class="chip px-3 py-1 rounded-lg text-sm">Attivi —</span>
         </div>
-        <div class="text-sm opacity-90">${r.address || ''}</div>
-        <div class="text-sm opacity-70">${r.description || ''}</div>
-        <div class="flex gap-2">
-          <a class="btn-main rounded-lg px-4 py-2 text-sm" target="_blank"
-             href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(r.center_lat+','+r.center_lng)}">
-             Apri in Google Maps
-          </a>
-          <a class="chip rounded-lg px-4 py-2 text-sm" href="join.html?room=${encodeURIComponent(r.id)}">Apri chat</a>
+        <div class="opacity-80 text-sm">${escapeHtml(r.address||'')}</div>
+        <div class="opacity-70 text-sm">Distanza: ${dist}</div>
+        <div class="flex items-center gap-2">
+          <button class="btn-main px-3 py-2 rounded-lg" data-action="maps" data-url="${mapsUrl}">Apri in Google Maps</button>
+          <button class="chip px-3 py-2 rounded-lg" data-action="join" data-room="${r.id}">Apri chat</button>
         </div>
       `;
-      cont.appendChild(card);
-    }
+      container.appendChild(card);
+    });
   }
-  renderRooms();
+
+  // bottone posizione
+  document.getElementById('btnLocate').onclick = ()=>{
+    navigator.geolocation.getCurrentPosition(pos=>{
+      myPos = { lat:pos.coords.latitude, lng:pos.coords.longitude };
+      document.getElementById('locState').textContent = 'Posizione acquisita ✅';
+      loadRooms();
+    }, _=>{
+      document.getElementById('locState').textContent = 'Posizione non disponibile ❌';
+    }, { enableHighAccuracy:true, maximumAge:0, timeout:10000 });
+  };
+
+  // click delegato sui pulsanti
+  document.addEventListener('click', async (e)=>{
+    const mapsBtn = e.target.closest('[data-action="maps"]');
+    if (mapsBtn){
+      const url = mapsBtn.getAttribute('data-url');
+      if (!await requireAuthOrRedirect(url)) return;
+      location.href = url;
+      return;
+    }
+    const joinBtn = e.target.closest('[data-action="join"]');
+    if (joinBtn){
+      const room = joinBtn.getAttribute('data-room');
+      const next = `join.html?room=${encodeURIComponent(room)}`;
+      if (!await requireAuthOrRedirect(next)) return;
+      location.href = next;
+    }
+  });
+
+  function escapeHtml(s){return (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
+  function haversine(lat1,lon1,lat2,lon2){
+    const R=6371, toRad=d=>d*Math.PI/180;
+    const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+    const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.sqrt(a));
+  }
 </script>
 </body>
 </html>
