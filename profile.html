@@ -22,25 +22,31 @@
     .badge{font-size:12px;padding:6px 10px;border-radius:999px;background:#101014;border:1px solid var(--border)}
     .error{border:1px solid #402225;background:#1b0f11;color:#ffc6c6;padding:12px;border-radius:12px;margin-top:10px;display:none;white-space:pre-wrap}
     .toast{position:fixed;right:18px;bottom:18px;background:#141417;border:1px solid var(--border);padding:12px 14px;border-radius:12px;display:none;z-index:80}
+
     /* header profilo */
     .profile-header{display:grid;grid-template-columns:140px 1fr;gap:18px;align-items:center}
     @media(max-width:600px){.profile-header{grid-template-columns:1fr;justify-items:center;text-align:center}}
     .h1{font-size:26px;font-weight:800;margin:0}
     .sub{margin:6px 0 0}
+
     /* pannello edit */
     .edit{margin-top:16px;border-top:1px dashed var(--border);padding-top:16px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     @media(max-width:720px){.grid{grid-template-columns:1fr}}
     .field{display:flex;flex-direction:column;gap:6px}
     .field input,.field textarea{background:#0f0f12;border:1px solid var(--border);color:var(--fg);border-radius:12px;padding:12px}
+
     /* gallery */
     .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
     @media(max-width:640px){.gallery{grid-template-columns:repeat(2,1fr)}}
-    .tile{position:relative;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#0f0f12}
+    .tile{position:relative;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#0f0f12;cursor:pointer}
     .tile img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
     .tile .del{position:absolute;top:6px;right:6px;font-size:12px;border-radius:999px;padding:6px 8px}
+    .tile .cap{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);padding:4px 8px;border-radius:10px;font-size:12px}
+
     /* fab */
     .fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;font-size:28px;font-weight:900;border:none;background:linear-gradient(90deg,var(--brand),var(--brand2));color:#111;cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.4);z-index:50}
+
     /* modale upload */
     .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:70}
     .modal{width:min(720px,100%);background:#151519;border:1px solid var(--border);border-radius:18px;padding:16px}
@@ -50,6 +56,7 @@
     .item input{width:100%;background:#0e0e12;border:1px solid var(--border);border-radius:10px;padding:10px;color:#fff}
     .bar{height:6px;background:#0e0e12;border:1px solid var(--border);border-radius:999px;overflow:hidden}
     .bar span{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--brand),var(--brand2))}
+
     /* === MOBILE NAV (hamburger + drawer) === */
     .nav-right{display:flex}
     .hamburger{display:none;gap:5px;flex-direction:column;align-items:center;justify-content:center;
@@ -68,6 +75,27 @@
     .drawer-nav .mitem{display:block;text-decoration:none;color:var(--fg);
       background:#16161a;border:1px solid var(--border);border-radius:12px;padding:12px 14px;text-align:left}
     .drawer-nav .mitem.logout{background:#1a1112;border-color:#442325;color:#ffb3b3}
+
+    /* === VIEWER (zoom stile Instagram) === */
+    .viewer{position:fixed;inset:0;display:none;z-index:90;background:rgba(0,0,0,.65)}
+    .viewer .box{position:absolute;inset:0;display:grid;place-items:center;padding:16px}
+    .viewer .panel{width:min(980px,100%);height:min(82vh,100%);background:#141417;border:1px solid var(--border);border-radius:16px;display:grid;grid-template-columns:1fr 360px;overflow:hidden}
+    @media(max-width:900px){.viewer .panel{grid-template-columns:1fr}}
+    .viewer .left{background:#0b0b0f;display:grid;place-items:center}
+    .viewer .left img{max-width:100%;max-height:100%;object-fit:contain;background:#0b0b0f}
+    .viewer .right{display:flex;flex-direction:column}
+    .viewer .topbar{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--border)}
+    .viewer .meta{padding:12px;border-bottom:1px dashed var(--border)}
+    .viewer .actions{display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px dashed var(--border)}
+    .heart{font-size:22px;line-height:1;background:#1a1a1e;border:1px solid var(--border);border-radius:12px;padding:8px 10px;cursor:pointer}
+    .heart.liked{background:#2a1414;border-color:#4a2424;color:#ff9aa0}
+    .viewer .comments{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+    .comment{background:#101015;border:1px solid var(--border);border-radius:12px;padding:10px}
+    .comment .by{font-size:12px;color:var(--muted)}
+    .comment .text{margin:6px 0 0}
+    .viewer .newc{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border)}
+    .viewer .newc input{flex:1;background:#0f0f12;border:1px solid var(--border);color:#fff;border-radius:12px;padding:10px}
+    .viewer .closeX{position:absolute;top:10px;right:10px}
   </style>
 </head>
 <body>
@@ -124,7 +152,6 @@
           <p class="muted sub" id="extra_txt"></p>
           <div class="row" style="margin-top:10px">
             <button id="editToggle" class="btn">Modifica profilo</button>
-            <a id="publicLink" class="btn primary" href="#" target="_blank">Vedi profilo pubblico</a>
           </div>
         </div>
       </div>
@@ -191,6 +218,35 @@
 
   <input type="file" id="photoPicker" accept="image/*" multiple style="display:none"/>
 
+  <!-- VIEWER Instagram-like -->
+  <div id="viewer" class="viewer" aria-hidden="true">
+    <div class="box">
+      <div class="panel">
+        <div class="left"><img id="viewImg" alt="photo"/></div>
+        <div class="right">
+          <div class="topbar">
+            <strong id="viewOwner">Profilo</strong>
+            <button id="closeViewer" class="btn">✕</button>
+          </div>
+          <div class="meta">
+            <div id="viewCaption" class="muted"></div>
+          </div>
+          <div class="actions">
+            <button id="likeBtn" class="heart">♡</button>
+            <span id="likeCount" class="muted">0 like</span>
+            <div style="flex:1"></div>
+            <button id="deletePhotoBtn" class="btn danger" style="display:none">Elimina foto</button>
+          </div>
+          <div id="commentsList" class="comments"></div>
+          <div class="newc">
+            <input id="commentInput" placeholder="Aggiungi un commento…"/>
+            <button id="sendComment" class="btn primary">Invia</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast">OK</div>
   <div id="errBox" class="error"></div>
 
@@ -206,7 +262,8 @@
     const toast = (m,ms=1600)=>{const t=qs('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',ms);};
 
     let user = null;
-    let chosenFiles = []; // [{file, captionInput, progressEl}]
+    let chosenFiles = []; // upload batch
+    let currentPhoto = null; // {id, user_id, image_path, caption}
 
     (async () => {
       const { data: { session }, error: sErr } = await supabase.auth.getSession();
@@ -216,22 +273,22 @@
 
       qs('#meEmail').textContent = user.email;
       qs('#uidBadge').textContent = 'uid: ' + user.id;
-      qs('#publicLink').href = `user.html?uid=${user.id}`;
 
-      // Listeners header
+      // Listeners header + mobile drawer
       qs('#logoutBtn').addEventListener('click', async () => { await supabase.auth.signOut(); location.href = 'auth.html'; });
+      const hamburger = qs('#hamburger'); const overlay = qs('#mobileOverlay'); const drawer = qs('#mobileDrawer'); const closeBtn = qs('#closeDrawer');
+      function openDrawer(){ overlay.classList.add('open'); drawer.classList.add('open'); hamburger.setAttribute('aria-expanded','true'); drawer.setAttribute('aria-hidden','false'); }
+      function closeDrawer(){ overlay.classList.remove('open'); drawer.classList.remove('open'); hamburger.setAttribute('aria-expanded','false'); drawer.setAttribute('aria-hidden','true'); }
+      hamburger.addEventListener('click', openDrawer); closeBtn.addEventListener('click', closeDrawer); overlay.addEventListener('click', closeDrawer);
+      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeDrawer(); });
+      const logoutBtn2 = qs('#logoutBtn2'); if (logoutBtn2) logoutBtn2.addEventListener('click', async ()=>{ await supabase.auth.signOut(); location.href='auth.html'; });
 
       // Toggle edit & form
       qs('#editToggle').addEventListener('click', toggleEdit);
       qs('#reloadBtn').addEventListener('click', loadProfile);
       qs('#saveBtn').addEventListener('click', onSave);
       qs('#removeAvatarBtn').addEventListener('click', onRemoveAvatar);
-
-      // Anteprima avatar
-      qs('#avatarFile').addEventListener('change', (e)=>{
-        const f = e.target.files?.[0]; if(!f) return;
-        qs('#avatarImg').src = URL.createObjectURL(f);
-      });
+      qs('#avatarFile').addEventListener('change', (e)=>{ const f=e.target.files?.[0]; if(!f) return; qs('#avatarImg').src = URL.createObjectURL(f); });
 
       // Upload foto bacheca
       qs('#fabAdd').addEventListener('click', ()=> qs('#photoPicker').click());
@@ -239,32 +296,11 @@
       qs('#cancelUpload').addEventListener('click', closeUploadModal);
       qs('#startUpload').addEventListener('click', startUpload);
 
-      // === Mobile drawer listeners
-      const hamburger = qs('#hamburger');
-      const overlay   = qs('#mobileOverlay');
-      const drawer    = qs('#mobileDrawer');
-      const closeBtn  = qs('#closeDrawer');
-
-      function openDrawer(){
-        overlay.classList.add('open');
-        drawer.classList.add('open');
-        hamburger.setAttribute('aria-expanded','true');
-        drawer.setAttribute('aria-hidden','false');
-      }
-      function closeDrawer(){
-        overlay.classList.remove('open');
-        drawer.classList.remove('open');
-        hamburger.setAttribute('aria-expanded','false');
-        drawer.setAttribute('aria-hidden','true');
-      }
-      hamburger.addEventListener('click', openDrawer);
-      closeBtn.addEventListener('click', closeDrawer);
-      overlay.addEventListener('click', closeDrawer);
-      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeDrawer(); });
-      const logoutBtn2 = qs('#logoutBtn2');
-      if (logoutBtn2) logoutBtn2.addEventListener('click', async ()=>{
-        await supabase.auth.signOut(); location.href = 'auth.html';
-      });
+      // Viewer listeners
+      qs('#closeViewer').addEventListener('click', closeViewer);
+      qs('#likeBtn').addEventListener('click', toggleLike);
+      qs('#sendComment').addEventListener('click', sendComment);
+      qs('#commentInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); sendComment(); }});
 
       await ensureProfileRow();
       await loadProfile();
@@ -377,7 +413,7 @@
 
       const { data, error } = await supabase
         .from('user_photos')
-        .select('id, image_path, caption, created_at')
+        .select('id, user_id, image_path, caption, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending:false });
       if (error){ showErr("Lettura galleria: "+error.message); return; }
@@ -388,12 +424,124 @@
         tile.innerHTML = `
           <img src="${ph.image_path}" alt="photo"/>
           <button class="btn danger del" style="position:absolute;top:6px;right:6px">Elimina</button>
-          ${ph.caption ? `<div class="muted" style="padding:6px">${ph.caption}</div>` : ``}
+          ${ph.caption ? `<div class="cap">${ph.caption}</div>` : ``}
         `;
-        tile.querySelector('.del').addEventListener('click', ()=> deletePhoto(ph.id, ph.image_path, tile));
+        // apri viewer cliccando sull'immagine
+        tile.querySelector('img').addEventListener('click', ()=> openViewer(ph));
+        // elimina dalla griglia
+        tile.querySelector('.del').addEventListener('click', (e)=>{ e.stopPropagation(); deletePhoto(ph.id, ph.image_path, tile); });
         grid.appendChild(tile);
       }
     }
+
+    // ======= VIEWER =======
+    function openViewer(photo){
+      currentPhoto = photo;
+      qs('#viewImg').src = photo.image_path;
+      qs('#viewCaption').textContent = photo.caption || '';
+      qs('#viewOwner').textContent = qs('#display_name_txt').textContent || 'Profilo';
+      qs('#deletePhotoBtn').style.display = (photo.user_id === user.id) ? 'inline-flex' : 'none';
+      qs('#viewer').style.display = 'block';
+      refreshViewer();
+    }
+    function closeViewer(){
+      currentPhoto = null;
+      qs('#viewer').style.display = 'none';
+      qs('#commentsList').innerHTML = '';
+      qs('#commentInput').value = '';
+    }
+
+    async function refreshViewer(){
+      if (!currentPhoto) return;
+      const pid = currentPhoto.id;
+
+      // conteggio like
+      const likeCountQ = await supabase.from('photo_likes').select('id', { head:true, count:'exact' }).eq('photo_id', pid);
+      const countLikes = likeCountQ?.count ?? 0;
+      qs('#likeCount').textContent = `${countLikes} like`;
+
+      // liked by me?
+      const likedQ = await supabase.from('photo_likes').select('id').eq('photo_id', pid).eq('user_id', user.id).maybeSingle();
+      const liked = !!likedQ.data;
+      const heart = qs('#likeBtn');
+      heart.classList.toggle('liked', liked);
+      heart.textContent = liked ? '♥' : '♡';
+
+      // commenti (con profili)
+      const { data: comments, error } = await supabase
+        .from('photo_comments')
+        .select('id, body, created_at, user_id')
+        .eq('photo_id', pid)
+        .order('created_at', { ascending:true });
+      if (error){ showErr("Lettura commenti: "+error.message); return; }
+
+      // prendi display_name/avatar degli autori (batch)
+      const ids = [...new Set(comments.map(c=>c.user_id))];
+      let profMap = {};
+      if (ids.length){
+        const { data: profs } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', ids);
+        (profs||[]).forEach(p=> profMap[p.id] = p);
+      }
+
+      const list = qs('#commentsList'); list.innerHTML='';
+      comments.forEach(c=>{
+        const p = profMap[c.user_id] || {};
+        const name = p.display_name || 'Utente';
+        const av = p.avatar_url || '';
+        const wrap = document.createElement('div'); wrap.className='comment';
+        wrap.innerHTML = `
+          <div class="by">
+            ${av ? `<img src="${av}" style="width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:6px"/>` : ``}
+            <strong>${name}</strong> · ${new Date(c.created_at).toLocaleString()}
+            ${c.user_id===user.id ? `<button data-id="${c.id}" class="btn danger" style="float:right;padding:4px 8px;font-size:12px">Elimina</button>` : ``}
+          </div>
+          <div class="text">${escapeHtml(c.body)}</div>
+        `;
+        if (c.user_id===user.id){
+          wrap.querySelector('button').addEventListener('click', ()=> deleteComment(c.id));
+        }
+        list.appendChild(wrap);
+      });
+    }
+
+    async function toggleLike(){
+      if (!currentPhoto) return;
+      const pid = currentPhoto.id;
+      // hai già messo like?
+      const { data: existing } = await supabase.from('photo_likes').select('id').eq('photo_id', pid).eq('user_id', user.id).maybeSingle();
+      if (existing){
+        await supabase.from('photo_likes').delete().eq('id', existing.id);
+      }else{
+        await supabase.from('photo_likes').insert([{ photo_id: pid, user_id: user.id }]);
+      }
+      refreshViewer();
+    }
+
+    async function sendComment(){
+      if (!currentPhoto) return;
+      const input = qs('#commentInput');
+      const body = (input.value||'').trim();
+      if (!body) return;
+      const { error } = await supabase.from('photo_comments').insert([{ photo_id: currentPhoto.id, user_id: user.id, body }]);
+      if (error){ showErr("Invio commento: "+error.message); return; }
+      input.value = '';
+      refreshViewer();
+    }
+
+    async function deleteComment(cid){
+      const { error } = await supabase.from('photo_comments').delete().eq('id', cid);
+      if (error){ showErr("Elimina commento: "+error.message); return; }
+      refreshViewer();
+    }
+
+    qs('#deletePhotoBtn').addEventListener('click', async ()=>{
+      if (!currentPhoto) return;
+      await deletePhoto(currentPhoto.id, currentPhoto.image_path);
+      closeViewer();
+      await loadGallery();
+    });
+
+    function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m])); }
 
     // ======= MODALE UPLOAD (caption + progress) =======
     function openUploadModal(e){
@@ -465,7 +613,8 @@
 
       const { error: del2 } = await supabase.from('user_photos').delete().eq('id', photoId);
       if (del2){ showErr("Eliminazione record: "+del2.message); return; }
-      tileEl.remove(); toast('Foto eliminata');
+      if (tileEl) tileEl.remove();
+      toast('Foto eliminata');
     }
   </script>
 </body>
