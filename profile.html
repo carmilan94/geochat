@@ -27,6 +27,13 @@
     .toast{position:fixed;right:18px;bottom:18px;background:#141417;border:1px solid var(--border);padding:12px 14px;border-radius:12px;display:none}
     .error{border:1px solid #402225;background:#1a1011;color:#f9b9b9;padding:12px;border-radius:12px;margin-top:10px;display:none;white-space:pre-wrap}
     code{background:#0e0e11;padding:2px 6px;border-radius:6px;border:1px solid var(--border)}
+    /* Gallery */
+    .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    @media(max-width:640px){.gallery{grid-template-columns:repeat(2,1fr)}}
+    .tile{position:relative;overflow:hidden;border-radius:12px;border:1px solid var(--border);background:#0f0f12}
+    .tile img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
+    .tile .del{position:absolute;top:6px;right:6px;font-size:12px;border-radius:10px;padding:6px 8px}
+    .caption{font-size:12px;color:var(--muted);padding:6px 2px}
   </style>
 </head>
 <body>
@@ -50,12 +57,12 @@
 
   <main class="wrap">
     <h1>Il mio profilo</h1>
-    <p class="muted">Aggiorna i tuoi dati e la foto profilo. La bacheca foto stile Instagram arriva nello step successivo.</p>
+    <p class="muted">Aggiorna i tuoi dati, avatar e carica foto per la tua bacheca.</p>
 
     <div id="errBox" class="error"></div>
 
     <div class="grid">
-      <!-- Colonna sinistra: Avatar -->
+      <!-- Avatar -->
       <section class="card">
         <h3 style="margin-top:0">Foto profilo</h3>
         <div class="row" style="gap:16px;margin:12px 0">
@@ -66,13 +73,13 @@
               <button class="btn" id="uploadAvatarBtn" type="button">Carica avatar</button>
               <button class="btn danger" id="removeAvatarBtn" type="button">Rimuovi</button>
             </div>
-            <span class="hint">Consigliato: immagine quadrata 512×512. Verrà salvata su bucket <code>avatars</code> (public read).</span>
+            <span class="hint">Consigliato: quadrata 512×512. Salvata su <code>avatars</code> (public read).</span>
             <a id="publicLink" class="btn" target="_blank" href="#">Vedi profilo pubblico</a>
           </div>
         </div>
       </section>
 
-      <!-- Colonna destra: Dati profilo -->
+      <!-- Dati profilo -->
       <section class="card">
         <h3 style="margin-top:0">Dati utente</h3>
         <form id="profileForm">
@@ -96,136 +103,14 @@
             <button class="btn primary" type="submit">Salva modifiche</button>
             <button class="btn" type="button" id="reloadBtn">Ricarica</button>
           </div>
-          <p class="hint">I dati sono salvati in <code>public.profiles</code> con RLS (puoi modificare solo il tuo).</p>
+          <p class="hint">I dati sono in <code>public.profiles</code> (RLS: solo tu puoi modificare).</p>
         </form>
       </section>
     </div>
-  </main>
 
-  <div id="toast" class="toast">Salvato!</div>
-
-  <script>
-    // === Supabase init (tuo progetto) ===
-    const SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // === Helpers UI ===
-    const qs = (s, r=document)=>r.querySelector(s);
-    const showErr = (msg) => { const box = qs('#errBox'); box.textContent = msg; box.style.display='block'; };
-    const clearErr = () => { const box = qs('#errBox'); box.textContent = ''; box.style.display='none'; };
-    const toast = (msg, ms=1600) => { const t = qs('#toast'); t.textContent = msg; t.style.display='block'; setTimeout(()=> t.style.display='none', ms); };
-
-    let user = null;
-
-    // === Avvio: controllo login, UI e dati ===
-    (async () => {
-      const { data: { session }, error: sErr } = await supabase.auth.getSession();
-      if (sErr) { showErr("Errore sessione: " + sErr.message); return; }
-      if (!session) { location.href = 'auth.html?next=profile.html'; return; }
-
-      user = session.user;
-      qs('#meEmail').textContent = user.email;
-      qs('#uidBadge').textContent = 'uid: ' + user.id;
-      qs('#publicLink').href = `user.html?uid=${user.id}`;
-
-      qs('#logoutBtn').addEventListener('click', async () => { await supabase.auth.signOut(); location.href = 'auth.html'; });
-      qs('#reloadBtn').addEventListener('click', loadProfile);
-      qs('#profileForm').addEventListener('submit', onSave);
-      qs('#uploadAvatarBtn').addEventListener('click', onUploadAvatar);
-      qs('#removeAvatarBtn').addEventListener('click', onRemoveAvatar);
-
-      await ensureProfileRow();
-      await loadProfile();
-    })();
-
-    // Crea la riga profilo se manca
-    async function ensureProfileRow() {
-      clearErr();
-      const { data, error } = await supabase.from('profiles').select('id,avatar_url').eq('id', user.id).maybeSingle();
-      if (error) { showErr("Errore lettura profilo: " + error.message); return; }
-      if (!data) {
-        const { error: insErr } = await supabase.from('profiles').insert([{ id: user.id }]);
-        if (insErr) { showErr("Errore creazione profilo: " + insErr.message); }
-      }
-    }
-
-    // Carica i dati nel form e avatar
-    async function loadProfile() {
-      clearErr();
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('display_name, location, age, bio, avatar_url')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (error) { showErr("Errore caricamento profilo: " + error.message); return; }
-
-      qs('#display_name').value = data?.display_name ?? '';
-      qs('#location').value     = data?.location ?? '';
-      qs('#age').value          = data?.age ?? '';
-      qs('#bio').value          = data?.bio ?? '';
-
-      if (data?.avatar_url) {
-        qs('#avatarImg').src = data.avatar_url;
-      } else {
-        // Placeholder avatar
-        qs('#avatarImg').src = 'data:image/svg+xml;utf8,' + encodeURIComponent(
-          `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140">
-            <rect width="140" height="140" fill="#0f0f12"/>
-            <circle cx="70" cy="56" r="30" fill="#1e1e24"/>
-            <rect x="24" y="92" width="92" height="30" rx="15" fill="#1e1e24"/>
-          </svg>`
-        );
-      }
-    }
-
-    // Salva i campi profilo
-    async function onSave(e) {
-      e.preventDefault(); clearErr();
-      const payload = {
-        id: user.id,
-        display_name: qs('#display_name').value.trim() || null,
-        location: qs('#location').value.trim() || null,
-        age: qs('#age').value ? Number(qs('#age').value) : null,
-        bio: qs('#bio').value.trim() || null
-      };
-      const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
-      if (error) { showErr("Errore salvataggio: " + error.message); }
-      else { toast('Profilo aggiornato'); await loadProfile(); }
-    }
-
-    // Upload avatar su bucket "avatars/<uid>/<timestamp>_filename"
-    async function onUploadAvatar() {
-      clearErr();
-      const file = qs('#avatarFile').files?.[0];
-      if (!file) { toast('Seleziona un file'); return; }
-
-      const safeName = file.name.replace(/\s+/g,'_');
-      const filePath = `${user.id}/${Date.now()}_${safeName}`;
-
-      const { error: upErr } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: false });
-      if (upErr) { showErr("Upload avatar fallito: " + upErr.message); return; }
-
-      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      const avatarUrl = pub?.publicUrl;
-
-      const { error: updErr } = await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', user.id);
-      if (updErr) { showErr("Avatar caricato ma errore nel salvataggio URL: " + updErr.message); return; }
-
-      qs('#avatarImg').src = avatarUrl;
-      qs('#avatarFile').value = '';
-      toast('Avatar aggiornato');
-    }
-
-    // Rimuovi avatar (azzera campo, non cancella file dallo storage)
-    async function onRemoveAvatar() {
-      clearErr();
-      const { error } = await supabase.from('profiles').update({ avatar_url: null }).eq('id', user.id);
-      if (error) { showErr("Errore rimozione avatar: " + error.message); return; }
-      await loadProfile();
-      toast('Avatar rimosso');
-    }
-  </script>
-</body>
-</html>
+    <!-- BACHECA FOTO -->
+    <section class="card">
+      <h3 style="margin-top:0">Bacheca foto</h3>
+      <div class="row" style="gap:12px;margin-bottom:8px">
+        <input type="file" id="photoFiles" accept="image/*" multiple />
+        <input id="photoCaption" placeholder="Caption (facoltativa)" style="flex:1;background:#0f0f12;border:1px solid var(--border)
