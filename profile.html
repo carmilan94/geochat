@@ -14,27 +14,24 @@
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
     .btn{padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:#16161a;color:var(--fg);cursor:pointer}
     .btn.primary{background:linear-gradient(90deg,var(--brand),var(--brand2));color:#111;font-weight:700;border:none}
-    .btn.ghost{background:transparent}
     .btn.danger{background:#1a1112;border-color:#442325;color:#ffb3b3}
     .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px;margin-top:16px}
-    .center{text-align:center}
     .avatar{width:140px;height:140px;border-radius:999px;object-fit:cover;border:2px solid var(--border);background:#0f0f12;display:block;margin:0 auto}
     .muted{color:var(--muted)}
     .badge{font-size:12px;padding:6px 10px;border-radius:999px;background:#101014;border:1px solid var(--border)}
     .error{border:1px solid #402225;background:#1b0f11;color:#ffc6c6;padding:12px;border-radius:12px;margin-top:10px;display:none;white-space:pre-wrap}
     .toast{position:fixed;right:18px;bottom:18px;background:#141417;border:1px solid var(--border);padding:12px 14px;border-radius:12px;display:none}
-    /* header profilo */
+    /* layout header */
     .profile-header{display:grid;grid-template-columns:140px 1fr;gap:18px;align-items:center}
     @media(max-width:600px){.profile-header{grid-template-columns:1fr;justify-items:center;text-align:center}}
     .h1{font-size:26px;font-weight:800;margin:0}
     .sub{margin:6px 0 0}
-    /* pannello edit */
+    /* pannello edit (semplice) */
     .edit{margin-top:16px;border-top:1px dashed var(--border);padding-top:16px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     @media(max-width:720px){.grid{grid-template-columns:1fr}}
     .field{display:flex;flex-direction:column;gap:6px}
     .field input,.field textarea{background:#0f0f12;border:1px solid var(--border);color:var(--fg);border-radius:12px;padding:12px}
-    .hint{font-size:12px;color:var(--muted)}
     /* gallery */
     .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
     @media(max-width:640px){.gallery{grid-template-columns:repeat(2,1fr)}}
@@ -89,14 +86,14 @@
         </div>
       </div>
 
-      <!-- Edit panel -->
+      <!-- PANNELLO EDIT SEMPLICE -->
       <div id="editPanel" class="edit" style="display:none">
-        <div class="row" style="align-items:center;gap:12px;margin-bottom:10px">
-          <input type="file" id="avatarFile" accept="image/*"/>
-          <button class="btn danger" id="removeAvatarBtn" type="button">Rimuovi avatar</button>
-          <span class="hint">Seleziona un file e premi <strong>Salva modifiche</strong>: l’avatar si carica in automatico (<code>avatars/&lt;uid&gt;/</code>).</span>
-        </div>
         <form id="profileForm" class="grid">
+          <div class="field" style="grid-column:1/-1">
+            <label for="avatarFile">Foto profilo</label>
+            <input type="file" id="avatarFile" accept="image/*"/>
+            <p class="muted" style="margin:6px 0 0">Seleziona la foto e premi <b>Salva modifiche</b>. Si chiuderà il pannello e l’avatar resterà impostato.</p>
+          </div>
           <div class="field">
             <label for="display_name">Nome visualizzato</label>
             <input id="display_name" placeholder="Es. Carmine"/>
@@ -116,6 +113,7 @@
           <div class="row" style="grid-column:1/-1;justify-content:flex-end">
             <button class="btn" type="button" id="reloadBtn">Ricarica</button>
             <button class="btn primary" type="submit">Salva modifiche</button>
+            <button class="btn danger" type="button" id="removeAvatarBtn">Rimuovi avatar</button>
           </div>
         </form>
       </div>
@@ -162,7 +160,7 @@
     const qs = (s, r=document)=>r.querySelector(s);
     const showErr = (m)=>{const b=qs('#errBox');b.textContent=m;b.style.display='block';};
     const clearErr = ()=>{const b=qs('#errBox');b.textContent='';b.style.display='none';};
-    const toast = (m,ms=1500)=>{const t=qs('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',ms);};
+    const toast = (m,ms=1600)=>{const t=qs('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',ms);};
 
     let user = null;
     let chosenFiles = []; // [{file, captionInput, progressEl}]
@@ -179,19 +177,10 @@
 
       // Listeners
       qs('#logoutBtn').addEventListener('click', async () => { await supabase.auth.signOut(); location.href = 'auth.html'; });
-      qs('#editToggle').addEventListener('click', () => {
-        const p = qs('#editPanel');
-        p.style.display = p.style.display === 'block' ? 'none' : 'block';
-      });
+      qs('#editToggle').addEventListener('click', toggleEdit);
       qs('#reloadBtn').addEventListener('click', loadProfile);
       qs('#profileForm').addEventListener('submit', onSave);
       qs('#removeAvatarBtn').addEventListener('click', onRemoveAvatar);
-
-      // Upload flow foto bacheca
-      qs('#fabAdd').addEventListener('click', ()=> qs('#photoPicker').click());
-      qs('#photoPicker').addEventListener('change', openUploadModal);
-      qs('#cancelUpload').addEventListener('click', closeUploadModal);
-      qs('#startUpload').addEventListener('click', startUpload);
 
       // Anteprima avatar immediata
       qs('#avatarFile').addEventListener('change', (e)=>{
@@ -199,10 +188,21 @@
         qs('#avatarImg').src = URL.createObjectURL(f);
       });
 
+      // Upload foto bacheca
+      qs('#fabAdd').addEventListener('click', ()=> qs('#photoPicker').click());
+      qs('#photoPicker').addEventListener('change', openUploadModal);
+      qs('#cancelUpload').addEventListener('click', closeUploadModal);
+      qs('#startUpload').addEventListener('click', startUpload);
+
       await ensureProfileRow();
       await loadProfile();
       await loadGallery();
     })();
+
+    function toggleEdit(){
+      const p = qs('#editPanel');
+      p.style.display = p.style.display === 'block' ? 'none' : 'block';
+    }
 
     async function ensureProfileRow() {
       const { data, error } = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle();
@@ -244,19 +244,18 @@
       qs('#bio').value          = data?.bio ?? '';
     }
 
-    // --------- PATCH: salvataggio avatar automatico dentro "Salva modifiche"
+    // === SALVA (avatar + dati) e CHIUDE pannello ===
     async function onSave(e){
-      e.preventDefault(); 
-      clearErr();
+      e.preventDefault(); clearErr();
 
-      // 1) Se è stato scelto un nuovo avatar, caricalo ora
+      // 1) Selezionato nuovo avatar? Caricalo adesso
       let avatarUrlToSave = null;
-      const f = qs('#avatarFile').files?.[0];
-      if (f) {
+      const file = qs('#avatarFile').files?.[0];
+      if (file) {
         try {
-          const safe = f.name.replace(/\s+/g,'_');
+          const safe = file.name.replace(/\s+/g,'_');
           const path = `${user.id}/${Date.now()}_${safe}`;
-          const up = await supabase.storage.from('avatars').upload(path, f, { upsert:false });
+          const up = await supabase.storage.from('avatars').upload(path, file, { upsert:false });
           if (up.error) throw up.error;
           const pub = supabase.storage.from('avatars').getPublicUrl(path);
           avatarUrlToSave = pub.data?.publicUrl || null;
@@ -266,7 +265,7 @@
         }
       }
 
-      // 2) Prepara payload profilo
+      // 2) Salva i dati profilo (+ eventuale avatar_url)
       const payload = {
         id: user.id,
         display_name: qs('#display_name').value.trim() || null,
@@ -276,17 +275,17 @@
       };
       if (avatarUrlToSave) payload.avatar_url = avatarUrlToSave;
 
-      // 3) Salva
       const { error } = await supabase.from('profiles').upsert(payload, { onConflict:'id' });
       if (error) { showErr("Errore salvataggio: " + error.message); return; }
 
-      // 4) Refresh UI
+      // 3) UI: chiudi pannello + pulisci file + aggiorna avatar
       if (avatarUrlToSave) {
-        qs('#avatarFile').value = '';
         qs('#avatarImg').src = avatarUrlToSave + `?t=${Date.now()}`;
+        qs('#avatarFile').value = '';
       }
+      toggleEdit(); // chiude il pannello
       toast('Profilo aggiornato');
-      await loadProfile();
+      await loadProfile(); // ricarica dai dati salvati
     }
 
     async function onRemoveAvatar(){
