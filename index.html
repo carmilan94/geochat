@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>GeoChat • Home</title>
 
-  <!-- Tailwind (ok per MVP; in produzione meglio build locale) -->
+  <!-- Tailwind per MVP -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
@@ -26,11 +26,15 @@
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Google Maps (solo per vista Join) -->
-  <script async defer
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=geometry&callback=initMaps">
+  <!-- Google Maps (Join) -->
+  <script>
+    // flag usato per capire quando la Maps è pronta
+    window.__googleReady = false;
+    function onGoogleReady(){ window.__googleReady = true; }
   </script>
-  <script>window.initMaps = () => {};</script>
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=geometry&callback=onGoogleReady">
+  </script>
 </head>
 
 <body class="min-h-screen">
@@ -64,16 +68,15 @@
     </div>
   </section>
 
-  <!-- HOME SECTION -->
+  <!-- HOME -->
   <main id="homeSection" class="max-w-6xl mx-auto px-4 mt-6">
     <div class="grid md:grid-cols-2 gap-5">
-      <!-- pannello posizione -->
+      <!-- posizione -->
       <div class="rounded-2xl p-5 card">
         <h2 class="text-lg font-semibold mb-3">Chat vicine a te</h2>
         <p class="text-sm text-white/70">
           Vedi le chat disponibili, la distanza dalla tua posizione e apri le indicazioni con Google Maps.
         </p>
-
         <div class="flex items-center gap-3 mt-4">
           <button id="btnUseGps" class="px-3 py-2 rounded-md bg-amber-500/90 hover:bg-amber-500 text-black text-sm">
             📍 Usa la mia posizione
@@ -90,7 +93,7 @@
     </div>
   </main>
 
-  <!-- JOIN SECTION -->
+  <!-- JOIN -->
   <section id="joinSection" class="max-w-6xl mx-auto px-4 mt-6 hidden">
     <div class="grid lg:grid-cols-3 gap-5">
       <div class="rounded-2xl p-5 card lg:col-span-2">
@@ -113,29 +116,23 @@
     </div>
   </section>
 
-  <!-- FOOTER -->
   <footer class="max-w-6xl mx-auto px-4 py-10 text-sm text-white/50">
     GeoChat © 2025 • MVP
   </footer>
 
-  <!-- APP SCRIPT -->
+  <!-- APP -->
   <script type="module">
-    /* =======================
-       CONFIG & AUTH GUARD
-    ======================= */
+    // ------------- Supabase -------------
     const SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
-
     const { createClient } = window.supabase;
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // se non loggato → auth.html
+    // redirect se non loggato
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      window.location.href = "/auth.html";
-    }
+    if (!session) { window.location.href = "/auth.html"; }
 
-    // mostra Admin se profilo admin
+    // mostra link Admin se admin
     (async () => {
       try {
         const uid = session.user.id;
@@ -144,257 +141,219 @@
       } catch {}
     })();
 
-    // Logout
+    // logout
     document.getElementById('btnLogout')?.addEventListener('click', async () => {
       await supabase.auth.signOut();
       window.location.href = '/auth.html';
     });
 
-    /* =======================
-       DOM RIFERIMENTI
-    ======================= */
+    // ------------- DOM refs -------------
     const homeSection  = document.getElementById('homeSection');
     const joinSection  = document.getElementById('joinSection');
-
     const btnUseGps    = document.getElementById('btnUseGps');
     const roomsWrap    = document.getElementById('roomsWrap');
-
     const joinTitle    = document.getElementById('joinTitle');
     const joinAddr     = document.getElementById('joinAddr');
     const joinMsg      = document.getElementById('joinMsg');
     const joinEnterBtn = document.getElementById('joinEnterBtn');
     const joinMapEl    = document.getElementById('joinMap');
 
-    /* =======================
-       STATE
-    ======================= */
+    // ------------- State -------------
     let currentPos = null;
     let currentRoom = null;
     let joinMap, joinPolygon, joinMarker;
 
-    /* =======================
-       GEO UTILS
-    ======================= */
-    function getPositionOnce() {
-      return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) {
-          reject(new Error('Geolocalizzazione non disponibile'));
-          return;
-        }
+    // ------------- Utils -------------
+    function esc(s=''){ return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function waitGoogle(){
+      return new Promise(res=>{
+        if (window.__googleReady && window.google && google.maps) return res();
+        const t = setInterval(()=>{
+          if (window.__googleReady && window.google && google.maps){ clearInterval(t); res(); }
+        },50);
+        setTimeout(()=>{ clearInterval(t); res(); }, 4000); // comunque non bloccare
+      });
+    }
+    function getPositionOnce(){
+      return new Promise((resolve,reject)=>{
+        if(!navigator.geolocation) return reject(new Error('Geolocalizzazione non disponibile'));
         navigator.geolocation.getCurrentPosition(
-          pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          pos => resolve({lat:pos.coords.latitude,lng:pos.coords.longitude}),
           err => reject(err),
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+          {enableHighAccuracy:true,timeout:10000,maximumAge:0}
         );
       });
     }
-
-    function pointInPolygon(point, polygonLatLngs) {
-      let x = point.lng, y = point.lat;
-      let inside = false;
-      for (let i = 0, j = polygonLatLngs.length - 1; i < polygonLatLngs.length; j = i++) {
-        let xi = polygonLatLngs[i].lng, yi = polygonLatLngs[i].lat;
-        let xj = polygonLatLngs[j].lng, yj = polygonLatLngs[j].lat;
-        let intersect = ((yi > y) !== (yj > y)) &&
-                        (x < (xj - xi) * (y - yi) / ((yj - yi) + 1e-12) + xi);
-        if (intersect) inside = !inside;
+    function pointInPolygon(point, poly){
+      let x=point.lng, y=point.lat, inside=false;
+      for (let i=0,j=poly.length-1;i<poly.length;j=i++){
+        const xi=poly[i].lng, yi=poly[i].lat, xj=poly[j].lng, yj=poly[j].lat;
+        const intersect=((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/((yj-yi)+1e-12)+xi);
+        if (intersect) inside=!inside;
       }
       return inside;
     }
-
-    function haversineKm(a, b) {
-      const R = 6371;
-      const dLat = (b.lat - a.lat) * Math.PI / 180;
-      const dLng = (b.lng - a.lng) * Math.PI / 180;
-      const s1 = Math.sin(dLat/2) ** 2 +
-                 Math.cos(a.lat*Math.PI/180) * Math.cos(b.lat*Math.PI/180) *
-                 (Math.sin(dLng/2) ** 2);
-      return 2 * R * Math.asin(Math.sqrt(s1));
+    function haversineKm(a,b){
+      const R=6371, dLat=(b.lat-a.lat)*Math.PI/180, dLng=(b.lng-a.lng)*Math.PI/180;
+      const s=Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*(Math.sin(dLng/2)**2);
+      return 2*R*Math.asin(Math.sqrt(s));
     }
 
-    /* =======================
-       HOME: LISTA STANZE
-    ======================= */
-    async function loadRooms() {
-      const { data, error } = await supabase
-        .from('rooms')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        roomsWrap.innerHTML = `<div class="text-red-400 text-sm">Errore: ${error.message}</div>`;
-        return;
-      }
+    // ------------- Load rooms -------------
+    async function loadRooms(){
+      const { data, error } = await supabase.from('rooms').select('*').order('created_at',{ascending:false});
+      if (error){ roomsWrap.innerHTML = `<div class="text-red-400 text-sm">Errore: ${error.message}</div>`; return; }
 
       roomsWrap.innerHTML = '';
-      data.forEach(r => {
-        const wrap = document.createElement('div');
-        wrap.className = 'rounded-xl bg-[#141414] border border-white/10 p-4 mb-4 flex items-start gap-4';
-        wrap.innerHTML = `
+      data.forEach(r=>{
+        const card = document.createElement('div');
+        card.className = 'rounded-xl bg-[#141414] border border-white/10 p-4 mb-4 flex items-start gap-4';
+
+        const dist = currentPos ? `${haversineKm(currentPos,{lat:r.center_lat,lng:r.center_lng}).toFixed(1)} km` : 'sconosciuta';
+
+        card.innerHTML = `
           <div class="flex-shrink-0 w-10 h-10 rounded-full brand-grad grid place-items-center font-extrabold text-black">GC</div>
           <div class="flex-1">
             <div class="flex items-center gap-2">
               <h3 class="font-semibold text-white">${esc(r.name || 'Senza nome')}</h3>
               <span class="text-xs text-white/50 px-2 py-0.5 rounded bg-white/10">Attiva</span>
             </div>
-            <div class="text-xs text-white/60 mt-2">Distanza: <span class="room-dist">sconosciuta</span></div>
+            <div class="text-xs text-white/60 mt-2">Distanza: <span class="room-dist">${dist}</span></div>
             <div class="text-sm text-white/80 mt-1">${esc(r.address || '')}</div>
             ${r.description ? `<div class="text-xs text-white/60 mt-1">${esc(r.description)}</div>` : ''}
             <div class="mt-3 flex gap-2">
               <a target="_blank"
-                 href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(r.address || `${r.center_lat},${r.center_lng}`)}"
-                 class="px-3 py-2 rounded-md bg-amber-500/90 hover:bg-amber-500 text-black text-sm">
+                href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(r.address || `${r.center_lat},${r.center_lng}`)}"
+                class="px-3 py-2 rounded-md bg-amber-500/90 hover:bg-amber-500 text-black text-sm">
                 Apri in Google Maps
               </a>
               <button class="px-3 py-2 rounded-md bg-white/10 hover:bg-white/15 text-white text-sm"
-                      data-open-room="${r.id}">
+                data-open-room="${r.id}">
                 Apri chat
               </button>
             </div>
           </div>
         `;
-        if (currentPos) {
-          const km = haversineKm(currentPos, { lat: r.center_lat, lng: r.center_lng });
-          wrap.querySelector('.room-dist').textContent = `${km.toFixed(1)} km`;
-        }
-        roomsWrap.appendChild(wrap);
+        roomsWrap.appendChild(card);
       });
     }
 
-    /* =======================
-       JOIN: DETTAGLIO STANZA + GEOFENCE
-    ======================= */
-    async function openJoin(roomId) {
+    // ------------- JOIN -------------
+    async function openJoin(roomId){
+      // vista
       homeSection.classList.add('hidden');
       joinSection.classList.remove('hidden');
 
-      const { data, error } = await supabase.from('rooms').select('*').eq('id', roomId).single();
-      if (error || !data) {
-        joinTitle.textContent = 'Chat non trovata';
-        joinAddr.textContent  = '';
-        joinMsg.textContent   = error ? error.message : 'ID non valido.';
-        joinEnterBtn.disabled = true;
+      // dati stanza
+      const { data:room, error } = await supabase.from('rooms').select('*').eq('id', roomId).single();
+      if (error || !room){
+        joinTitle.textContent='Chat non trovata';
+        joinAddr.textContent='';
+        joinMsg.textContent= error ? error.message : 'ID non valido.';
+        joinEnterBtn.disabled=true;
         return;
       }
-      currentRoom = data;
+      currentRoom = room;
 
-      joinTitle.textContent = data.name || 'Chat';
-      joinAddr.textContent  = data.address || '';
-      joinEnterBtn.dataset.room = data.id;
+      joinTitle.textContent = room.name || 'Chat';
+      joinAddr.textContent  = room.address || '';
+      joinEnterBtn.dataset.room = room.id;
 
-      // mappa
-      if (!window.google || !google.maps) {
+      // prepara mappa
+      await waitGoogle();
+      if (!window.google || !google.maps){
         joinMsg.textContent = 'Mappe non disponibili.';
         joinEnterBtn.disabled = true;
         return;
       }
-      if (!joinMap) {
-        joinMap = new google.maps.Map(joinMapEl, {
-          center:{lat:data.center_lat,lng:data.center_lng},
-          zoom:17
-        });
+
+      if (!joinMap){
+        joinMap = new google.maps.Map(joinMapEl,{center:{lat:room.center_lat,lng:room.center_lng}, zoom:17});
       } else {
-        joinMap.setCenter({lat:data.center_lat,lng:data.center_lng});
+        joinMap.setCenter({lat:room.center_lat,lng:room.center_lng});
         joinMap.setZoom(17);
       }
 
       if (joinMarker) joinMarker.setMap(null);
-      joinMarker = new google.maps.Marker({
-        position:{lat:data.center_lat,lng:data.center_lng}, map:joinMap
-      });
+      joinMarker = new google.maps.Marker({ position:{lat:room.center_lat,lng:room.center_lng}, map:joinMap });
 
       if (joinPolygon) joinPolygon.setMap(null);
-      const coords = (data.polygon?.coordinates?.[0] || []).map(([lng,lat]) => ({lat,lng}));
-      if (coords.length > 2) {
+      const coords = (room.polygon?.coordinates?.[0] || []).map(([lng,lat])=>({lat,lng}));
+      if (coords.length>2){
         joinPolygon = new google.maps.Polygon({
-          paths:coords, strokeColor:"#22c55e", strokeOpacity:0.9, strokeWeight:2,
+          paths:coords, strokeColor:"#22c55e", strokeOpacity:.9, strokeWeight:2,
           fillColor:"#22c55e", fillOpacity:.15, map:joinMap
         });
       }
 
-      // geoloc
-      try {
-        currentPos = await getPositionOnce();
-      } catch {
-        joinMsg.textContent = "Posizione non disponibile. Abilita la posizione per poter entrare.";
-        joinEnterBtn.disabled = true;
-        return;
+      // ottieni/riusa posizione
+      if (!currentPos){
+        try{ currentPos = await getPositionOnce(); }
+        catch(e){
+          joinMsg.textContent = "Posizione non disponibile. Abilita la posizione per entrare.";
+          joinEnterBtn.disabled = true;
+          return;
+        }
       }
 
-      // check perimetro
-      let can = true;
-      if (coords.length > 2) can = pointInPolygon(currentPos, coords);
-      if (can) {
+      // geofence
+      let allowed = true;
+      if (coords.length>2) allowed = pointInPolygon(currentPos, coords);
+
+      if (allowed){
         joinMsg.textContent = "Sei dentro al perimetro ✅";
         joinEnterBtn.disabled = false;
-      } else {
+      }else{
         joinMsg.textContent = "Sei fuori dal perimetro ❌";
         joinEnterBtn.disabled = true;
       }
     }
 
-    /* =======================
-       ROUTER
-    ======================= */
-    function handleRoute() {
+    // ------------- Router -------------
+    function handleRoute(){
       const roomId = new URLSearchParams(location.search).get('room');
-      if (roomId) {
-        openJoin(roomId);
-      } else {
-        joinSection.classList.add('hidden');
-        homeSection.classList.remove('hidden');
-        loadRooms();
-      }
+      if (roomId) openJoin(roomId);
+      else { joinSection.classList.add('hidden'); homeSection.classList.remove('hidden'); loadRooms(); }
     }
     window.addEventListener('popstate', handleRoute);
 
-    /* =======================
-       EVENTI
-    ======================= */
-    // usa GPS
-    btnUseGps?.addEventListener('click', async () => {
-      try {
+    // ------------- Eventi -------------
+    btnUseGps?.addEventListener('click', async ()=>{
+      try{
         currentPos = await getPositionOnce();
         await loadRooms();
+        // ordina cards per distanza
         const cards = [...roomsWrap.children];
-        cards.sort((a,b) => {
-          const ta = a.querySelector('.room-dist')?.textContent || '';
-          const tb = b.querySelector('.room-dist')?.textContent || '';
-          const va = parseFloat(ta) || 1e9;
-          const vb = parseFloat(tb) || 1e9;
+        cards.sort((a,b)=>{
+          const va = parseFloat(a.querySelector('.room-dist')?.textContent)||1e9;
+          const vb = parseFloat(b.querySelector('.room-dist')?.textContent)||1e9;
           return va - vb;
         });
         roomsWrap.replaceChildren(...cards);
         document.getElementById('geoHint').textContent = 'Posizione attiva (lista ordinata)';
-      } catch {
+      }catch{
         document.getElementById('geoHint').textContent = 'Posizione non disponibile (lista non ordinata)';
       }
     });
 
-    // delega “Apri chat”
-    roomsWrap.addEventListener('click', e => {
+    // Apri chat SENZA reload (pushState + openJoin)
+    roomsWrap.addEventListener('click', e=>{
       const btn = e.target.closest('[data-open-room]');
       if (!btn) return;
       const id = btn.getAttribute('data-open-room');
-      location.assign('/?room=' + encodeURIComponent(id));
+      history.pushState({room:id}, '', '?room='+encodeURIComponent(id));
+      openJoin(id);
     });
 
-    // “Entra nella chat” (porta alla pagina chat; se non l’hai ancora creata, lo facciamo nello step dopo)
-    joinEnterBtn?.addEventListener('click', () => {
+    // Entra (porta alla chat vera e propria)
+    joinEnterBtn?.addEventListener('click', ()=>{
       const id = joinEnterBtn.dataset.room;
       if (!id) return;
-      location.assign('/chat.html?room=' + encodeURIComponent(id));
+      location.assign('/chat.html?room='+encodeURIComponent(id));
     });
 
-    /* =======================
-       HELPERS
-    ======================= */
-    const esc = (s='') => s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-    /* =======================
-       BOOT
-    ======================= */
-    document.addEventListener('DOMContentLoaded', () => {
+    // ------------- Boot -------------
+    document.addEventListener('DOMContentLoaded', ()=>{
       handleRoute();
       loadRooms();
     });
