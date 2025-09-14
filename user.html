@@ -1,29 +1,50 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GeoChat • Profilo pubblico</title>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <style>
-    :root{--bg:#0b0b0c;--card:#141417;--fg:#f6f6f7;--muted:#8a8a94;--border:#232328}
-    *{box-sizing:border-box} body{margin:0;background:#0b0b0c;color:var(--fg);font-family:system-ui,Segoe UI,Inter,Roboto,Arial}
-    .wrap{max-width:720px;margin:0 auto;padding:20px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px;margin-top:16px}
-    .center{text-align:center}
-    .avatar{width:160px;height:160px;border-radius:999px;object-fit:cover;border:2px solid var(--border);background:#0f0f12;display:block;margin:0 auto 10px}
-    h1{margin:8px 0 4px}
-    .muted{color:var(--muted)}
-    .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-    @media(max-width:640px){.gallery{grid-template-columns:repeat(2,1fr)}}
-    .tile{overflow:hidden;border-radius:14px;border:1px solid var(--border);background:#0f0f12}
-    .tile img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GeoChat • Profilo pubblico</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+  :root{--bg:#0b0b0c;--card:#141417;--fg:#f6f6f7;--muted:#8a8a94;--border:#232328;--brand:#ff8a00;--brand2:#ffb347}
+  *{box-sizing:border-box} body{margin:0;background:#0b0b0c;color:var(--fg);font-family:system-ui,Segoe UI,Inter,Roboto,Arial}
+  .wrap{max-width:720px;margin:0 auto;padding:20px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px;margin-top:16px}
+  .center{text-align:center}
+  .avatar{width:160px;height:160px;border-radius:999px;object-fit:cover;border:2px solid var(--border);background:#0f0f12;display:block;margin:0 auto 10px}
+  h1{margin:8px 0 4px}.muted{color:var(--muted)}
+  .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+  @media(max-width:640px){.gallery{grid-template-columns:repeat(2,1fr)}}
+  .tile{overflow:hidden;border-radius:14px;border:1px solid var(--border);background:#0f0f12;cursor:pointer}
+  .tile img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
+
+  /* LIGHTBOX */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:50}
+  .lightbox{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:51}
+  .panel{width:min(960px,96vw);max-height:92vh;background:#121216;border:1px solid var(--border);border-radius:16px;display:grid;grid-template-columns:1fr 320px;gap:0}
+  @media(max-width:900px){.panel{grid-template-columns:1fr}}
+  .media{display:flex;align-items:center;justify-content:center;background:#0a0a0d;border-right:1px solid var(--border);position:relative}
+  .media img{max-width:100%;max-height:92vh;object-fit:contain;transition:transform .2s ease}
+  .side{padding:14px;overflow:auto}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn{padding:9px 12px;border-radius:12px;border:1px solid var(--border);background:#19191f;color:var(--fg);cursor:pointer}
+  .btn.primary{background:linear-gradient(90deg,var(--brand),var(--brand2));color:#111;border:none;font-weight:700}
+  .close{position:absolute;top:10px;right:10px}
+  .navbtn{position:absolute;top:50%;transform:translateY(-50%);background:#19191fcc;border:1px solid var(--border);padding:10px;border-radius:999px;cursor:pointer}
+  .navbtn.prev{left:10px}.navbtn.next{right:10px}
+
+  .counts{font-size:14px;color:var(--muted);margin:6px 0}
+  .caption{white-space:pre-wrap;margin:6px 0}
+  .comments{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+  .comment{background:#0f0f13;border:1px solid var(--border);border-radius:10px;padding:8px}
+  .mutetiny{font-size:12px;color:var(--muted)}
+  textarea{width:100%;background:#0e0e12;border:1px solid var(--border);border-radius:10px;color:var(--fg);padding:10px}
+</style>
 </head>
 <body>
   <main class="wrap">
     <section class="card center" id="header">
-      <img id="avatar" class="avatar" src="" alt="avatar"/>
+      <img id="avatar" class="avatar" alt="avatar"/>
       <h1 id="display_name">Caricamento…</h1>
       <p id="bio" class="muted"></p>
       <p id="extra" class="muted"></p>
@@ -36,78 +57,8 @@
     </section>
   </main>
 
-  <script>
-    const SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    const params = new URLSearchParams(window.location.search);
-    const uid = params.get("uid");
-
-    if (!uid) {
-      document.body.innerHTML = "<div class='wrap'><p style='color:red'>Errore: nessun UID specificato.</p></div>";
-    } else {
-      loadProfile(uid);
-      loadGallery(uid);
-    }
-
-    async function loadProfile(uid) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('display_name, bio, age, location, avatar_url')
-        .eq('id', uid)
-        .maybeSingle();
-
-      if (error) {
-        document.getElementById('header').innerHTML =
-          `<div style="color:#f99;background:#210;padding:12px;border-radius:10px">Errore profilo: ${error.message}</div>`;
-        return;
-      }
-      if (!data) {
-        document.getElementById('header').innerHTML = "<p style='color:red'>Profilo non trovato.</p>";
-        return;
-      }
-
-      document.getElementById('display_name').textContent = data.display_name || "Utente senza nome";
-      document.getElementById('bio').textContent = data.bio || "";
-      const parts = [];
-      if (data.age) parts.push(`Età: ${data.age}`);
-      if (data.location) parts.push(`Località: ${data.location}`);
-      document.getElementById('extra').textContent = parts.join(' · ') || "";
-
-      document.getElementById('avatar').src = data.avatar_url ||
-        'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" fill="#0f0f12"/><circle cx="80" cy="64" r="34" fill="#1e1e24"/><rect x="28" y="106" width="104" height="34" rx="17" fill="#1e1e24"/></svg>`);
-    }
-
-    async function loadGallery(uid){
-      const grid = document.getElementById('gallery');
-      const empty = document.getElementById('empty');
-      grid.innerHTML = ''; empty.style.display='none';
-
-      const { data, error } = await supabase
-        .from('user_photos')
-        .select('image_path, caption, created_at')
-        .eq('user_id', uid)
-        .order('created_at', { ascending:false });
-
-      if (error){
-        grid.innerHTML = `<div style="color:#f99;background:#210;padding:12px;border-radius:10px">Errore galleria: ${error.message}</div>`;
-        return;
-      }
-      if (!data || !data.length){
-        empty.style.display='block';
-        return;
-      }
-
-      for (const ph of data){
-        const a = document.createElement('a');
-        a.href = ph.image_path; a.target = "_blank"; a.rel = "noopener";
-        a.className = 'tile';
-        a.title = ph.caption || '';
-        a.innerHTML = `<img src="${ph.image_path}" alt="photo">`;
-        grid.appendChild(a);
-      }
-    }
-  </script>
-</body>
-</html>
+  <!-- Lightbox -->
+  <div id="lbBg" class="overlay"></div>
+  <div id="lb" class="lightbox" role="dialog" aria-modal="true">
+    <div class="panel">
+      <div cla
