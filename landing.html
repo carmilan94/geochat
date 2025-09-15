@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>IMIN — Sono dentro</title>
+  <meta name="description" content="IMIN: chat geolocalizzate tra persone vicine. Sono dentro.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --bg:#0b0b0c; --card:#121215; --muted:#a2a2ab;
+      --acc1:#ff8a00; --acc2:#ffb347; --ring:#ff9a1a;
+    }
+    html,body{background:var(--bg); color:#fff; font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+    .glass{background:rgba(255,255,255,.06); backdrop-filter: blur(10px); border:1px solid rgba(255,255,255,.10)}
+    .chip{background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12)}
+    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2)); color:#111; font-weight:800}
+    .btn-ghost{background:#101015; border:1px solid #232328}
+    .ring-brand{box-shadow:0 0 0 8px rgba(255,138,0,.08)}
+    .grad-border{position:relative}
+    .grad-border:before{
+      content:""; position:absolute; inset:-1px; border-radius:inherit;
+      background:linear-gradient(120deg,rgba(255,138,0,.8),rgba(255,179,71,.6),rgba(255,255,255,.12));
+      filter:blur(12px); opacity:.25; z-index:-1;
+    }
+    /* animazioni morbide */
+    .float-slow{animation:float 14s ease-in-out infinite}
+    .float-med {animation:float 11s ease-in-out infinite}
+    .float-fast{animation:float 9s  ease-in-out infinite}
+    @keyframes float{0%{transform:translateY(0)}50%{transform:translateY(14px)}100%{transform:translateY(0)}}
+    .fade-up{opacity:0; transform:translateY(16px); transition:all .7s cubic-bezier(.25,.4,.25,1)}
+    .fade-up.in{opacity:1; transform:translateY(0)}
+    .scale-in{opacity:0; transform:scale(.98); transition:all .5s ease}
+    .scale-in.in{opacity:1; transform:scale(1)}
+    /* sfondi */
+    .bg-grid{
+      background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.06) 1px, transparent 0);
+      background-size: 22px 22px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,.9), rgba(0,0,0,.2));
+    }
+    .hero-grad{
+      background: radial-gradient(1000px 600px at 20% -10%, rgba(255,138,0,.15), transparent 60%),
+                  radial-gradient(900px 600px at 90% 20%, rgba(255,255,255,.08), transparent 55%),
+                  radial-gradient(1200px 700px at 50% 120%, rgba(255,179,71,.12), transparent 65%);
+    }
+    /* hamburger */
+    .hamb-line{width:22px;height:2px;background:#fff;display:block}
+  </style>
+</head>
+<body class="overflow-x-hidden">
+  <!-- NAV -->
+  <header class="sticky top-0 z-40 border-b border-white/10 bg-black/50 backdrop-blur">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <a href="#top" class="flex items-center gap-2 group">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-[var(--acc1)] to-[var(--acc2)] text-black font-extrabold">IN</div>
+        <div class="font-black tracking-tight text-lg">IMIN</div>
+      </a>
+      <nav class="hidden md:flex items-center gap-2">
+        <a href="#funzioni" class="chip px-3 py-1.5 rounded-lg text-sm hover:bg-white/12">Funzioni</a>
+        <a href="#come" class="chip px-3 py-1.5 rounded-lg text-sm hover:bg-white/12">Come funziona</a>
+        <a href="#cta" class="chip px-3 py-1.5 rounded-lg text-sm hover:bg-white/12">Inizia</a>
+        <a href="index.html" class="btn-main px-4 py-2 rounded-xl text-sm shadow ring-brand hover:opacity-90">Apri l’app</a>
+      </nav>
+      <button id="hamb" class="md:hidden chip px-3 py-2 rounded-lg" aria-label="Apri menu">
+        <span class="hamb-line"></span>
+        <span class="hamb-line my-1"></span>
+        <span class="hamb-line"></span>
+      </button>
+    </div>
+    <!-- Drawer mobile -->
+    <div id="drawer" class="hidden md:hidden border-t border-white/10 bg-black/70 backdrop-blur">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-2">
+        <a href="#funzioni" class="chip px-3 py-2 rounded-lg">Funzioni</a>
+        <a href="#come" class="chip px-3 py-2 rounded-lg">Come funziona</a>
+        <a href="#cta" class="chip px-3 py-2 rounded-lg">Inizia</a>
+        <a href="index.html" class="btn-main px-4 py-2 rounded-xl text-center shadow ring-brand">Apri l’app</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section id="top" class="relative overflow-hidden">
+    <div class="hero-grad absolute inset-0"></div>
+    <div class="absolute inset-0 bg-grid"></div>
+
+    <!-- shapes -->
+    <div class="pointer-events-none absolute inset-0">
+      <div class="float-slow abs-shape w-[520px] h-[120px] rounded-full left-[-8%] top-[12%] md:left-[-4%] bg-gradient-to-r from-white/10 to-transparent border border-white/15"></div>
+      <div class="float-med abs-shape w-[440px] h-[110px] rounded-full right-[-6%] top-[68%] bg-gradient-to-r from-[var(--acc2)]/25 to-transparent border border-white/15"></div>
+      <div class="float-fast abs-shape w-[280px] h-[70px] rounded-full left-[6%] bottom-[8%] bg-gradient-to-r from-white/10 to-transparent border border-white/15"></div>
+      <div class="float-med abs-shape w-[200px] h-[56px] rounded-full right-[14%] top-[10%] bg-gradient-to-r from-[var(--acc1)]/25 to-transparent border border-white/15"></div>
+    </div>
+
+    <div class="relative z-10 max-w-7xl mx-auto px-4 py-20 md:py-28">
+      <div class="max-w-3xl">
+        <span class="chip text-white/70 text-xs md:text-sm px-3 py-1.5 rounded-full fade-up">Chat locali in tempo reale</span>
+        <h1 class="fade-up text-4xl md:text-6xl xl:text-7xl font-black tracking-tight leading-[1.05] mt-4">
+          <span class="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/80">IMIN</span><br/>
+          <span class="text-transparent bg-clip-text bg-gradient-to-r from-[var(--acc2)] via-white/95 to-[var(--acc1)]">sono dentro</span>
+        </h1>
+        <p class="fade-up text-white/60 text-lg md:text-xl mt-5 max-w-2xl">
+          Scopri e unisciti alle chat **vicine a te**. Filtra per città, ordina per distanza, condividi momenti.
+          IMIN connette le persone nel mondo reale, in un attimo.
+        </p>
+        <div class="fade-up flex items-center gap-3 mt-7">
+          <a href="index.html" class="btn-main px-5 py-3 rounded-xl shadow ring-brand grad-border">Apri l’app</a>
+          <a href="#funzioni" class="btn-ghost px-5 py-3 rounded-xl">Guarda le funzioni</a>
+        </div>
+        <div class="fade-up text-white/50 text-sm mt-4">Nero · Bianco · Arancione · Futuristico · Sfumato</div>
+      </div>
+      <!-- mockup card -->
+      <div class="scale-in mt-12 md:mt-16">
+        <div class="glass rounded-2xl border-white/15 p-3 md:p-4">
+          <div class="rounded-xl bg-gradient-to-b from-[#0f0f12] to-[#0a0a0c] border border-white/10 p-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--acc1)] to-[var(--acc2)] text-black font-extrabold grid place-items-center">IN</span>
+                <div class="font-bold">Chat vicine</div>
+              </div>
+              <div class="text-white/50 text-sm">0.5 km</div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-4">
+              <!-- tile -->
+              <div class="group relative overflow-hidden rounded-xl border border-white/10">
+                <div class="aspect-square bg-gradient-to-br from-white/10 to-transparent"></div>
+                <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition"></div>
+                <div class="absolute left-2 bottom-2 text-sm px-2 py-1 rounded-md bg-black/50 border border-white/10">Centro</div>
+              </div>
+              <div class="group relative overflow-hidden rounded-xl border border-white/10">
+                <div class="aspect-square bg-gradient-to-br from-[var(--acc1)]/15 to-transparent"></div>
+                <div class="absolute left-2 bottom-2 text-sm px-2 py-1 rounded-md bg-black/50 border border-white/10">Università</div>
+              </div>
+              <div class="group relative overflow-hidden rounded-xl border border-white/10">
+                <div class="aspect-square bg-gradient-to-br from-white/12 to-transparent"></div>
+                <div class="absolute left-2 bottom-2 text-sm px-2 py-1 rounded-md bg-black/50 border border-white/10">Lungomare</div>
+              </div>
+              <div class="group relative overflow-hidden rounded-xl border border-white/10">
+                <div class="aspect-square bg-gradient-to-br from-[var(--acc2)]/14 to-transparent"></div>
+                <div class="absolute left-2 bottom-2 text-sm px-2 py-1 rounded-md bg-black/50 border border-white/10">Stazione</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /mockup -->
+    </div>
+
+    <div class="pointer-events-none absolute inset-x-0 bottom-[-1px] h-24 bg-gradient-to-t from-[var(--bg)] to-transparent"></div>
+  </section>
+
+  <!-- FUNZIONI -->
+  <section id="funzioni" class="relative py-16 md:py-24">
+    <div class="absolute inset-0 hero-grad opacity-70"></div>
+    <div class="relative max-w-7xl mx-auto px-4">
+      <div class="fade-up text-center max-w-2xl mx-auto">
+        <div class="chip inline-block px-3 py-1.5 rounded-full text-white/70">Perché IMIN</div>
+        <h2 class="mt-4 text-3xl md:text-5xl font-black tracking-tight">Velocità. Vicinanza. Vibrazioni.</h2>
+        <p class="text-white/60 max-w-xl mx-auto mt-3">Pensata mobile-first, semplice e immediata. Trovi chat locali,
+          carichi foto, lasci like e commenti, tutto in stile app moderna.</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-5 mt-10">
+        <!-- card -->
+        <div class="fade-up glass rounded-2xl p-5 border border-white/10">
+          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--acc1)] to-[var(--acc2)] text-black font-extrabold grid place-items-center">📍</div>
+          <h3 class="mt-4 text-xl font-bold">Chat per distanza</h3>
+          <p class="text-white/60 mt-2">Ordina dal più vicino al più lontano con un tap. Mostriamo chilometri reali (Haversine).</p>
+        </div>
+        <div class="fade-up glass rounded-2xl p-5 border border-white/10">
+          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--acc1)] to-[var(--acc2)] text-black font-extrabold grid place-items-center">🏙️</div>
+          <h3 class="mt-4 text-xl font-bold">Filtro città smart</h3>
+          <p class="text-white/60 mt-2">Capisce sia “Napoli” che “NA”. Funziona con sigle di tutte le province italiane.</p>
+        </div>
+        <div class="fade-up glass rounded-2xl p-5 border border-white/10">
+          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--acc1)] to-[var(--acc2)] text-black font-extrabold grid place-items-center">🖼️</div>
+          <h3 class="mt-4 text-xl font-bold">Bacheca stile social</h3>
+          <p class="text-white/60 mt-2">Foto a griglia, zoom elegante, like & commenti in tempo reale, profilo editabile.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COME FUNZIONA -->
+  <section id="come" class="relative py-16 md:py-24">
+    <div class="absolute inset-0 bg-gradient-to-b from-black/40 to-transparent"></div>
+    <div class="relative max-w-7xl mx-auto px-4">
+      <div class="grid lg:grid-cols-2 gap-8 items-center">
+        <div class="fade-up">
+          <h2 class="text-3xl md:text-5xl font-black tracking-tight">3 step e <span class="text-transparent bg-clip-text bg-gradient-to-r from-[var(--acc2)] to-[var(--acc1)]">sei dentro</span></h2>
+          <ul class="mt-6 space-y-4 text-white/70">
+            <li class="flex gap-3"><div class="w-8 h-8 rounded-lg bg-white/10 grid place-items-center">1</div> Entra o registrati in pochi secondi.</li>
+            <li class="flex gap-3"><div class="w-8 h-8 rounded-lg bg-white/10 grid place-items-center">2</div> Concedi la posizione o cerca una città.</li>
+            <li class="flex gap-3"><div class="w-8 h-8 rounded-lg bg-white/10 grid place-items-center">3</div> Entra nella chat, pubblica e interagisci.</li>
+          </ul>
+          <div class="mt-6 flex gap-3">
+            <a href="index.html" class="btn-main px-5 py-3 rounded-xl shadow ring-brand">Apri l’app</a>
+            <a href="auth.html" class="btn-ghost px-5 py-3 rounded-xl">Accedi / Registrati</a>
+          </div>
+        </div>
+        <div class="scale-in">
+          <div class="relative glass rounded-2xl p-4 border border-white/10">
+            <div class="rounded-xl overflow-hidden border border-white/10">
+              <div class="aspect-[16/10] bg-gradient-to-br from-[var(--acc1)]/15 via-white/5 to-transparent"></div>
+            </div>
+            <div class="absolute -inset-0.5 rounded-2xl pointer-events-none" style="background: radial-gradient(600px 160px at 20% 10%, rgba(255,138,0,.18), transparent), radial-gradient(500px 160px at 90% 80%, rgba(255,179,71,.12), transparent)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section id="cta" class="relative py-16 md:py-24">
+    <div class="absolute inset-0 hero-grad opacity-80"></div>
+    <div class="relative max-w-5xl mx-auto px-4 text-center">
+      <h2 class="fade-up text-3xl md:text-5xl font-black tracking-tight">Pronto a dire <span class="text-transparent bg-clip-text bg-gradient-to-r from-[var(--acc2)] to-[var(--acc1)]">IMIN</span>?</h2>
+      <p class="fade-up text-white/70 mt-3 max-w-2xl mx-auto">Apri l’app, attiva la posizione e scopri chi c’è intorno a te adesso.</p>
+      <div class="fade-up mt-6 flex justify-center gap-3">
+        <a href="index.html" class="btn-main px-6 py-3 rounded-xl shadow ring-brand grad-border">Apri l’app</a>
+        <a href="profile.html" class="btn-ghost px-6 py-3 rounded-xl">Il tuo profilo</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-white/10">
+    <div class="max-w-7xl mx-auto px-4 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--acc1)] to-[var(--acc2)] text-black font-extrabold grid place-items-center">IN</div>
+        <div class="font-bold">IMIN</div>
+      </div>
+      <div class="text-white/50 text-sm">© <span id="y"></span> IMIN — Sono dentro</div>
+      <div class="flex items-center gap-2 text-sm">
+        <a class="chip px-3 py-1.5 rounded-lg" href="auth.html">Accedi</a>
+        <a class="chip px-3 py-1.5 rounded-lg" href="index.html">Apri l’app</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Animazioni/Parallax -->
+  <script>
+    // anno footer
+    document.getElementById('y').textContent = new Date().getFullYear();
+
+    // drawer mobile
+    const hamb = document.getElementById('hamb');
+    const drawer = document.getElementById('drawer');
+    hamb?.addEventListener('click',()=> drawer.classList.toggle('hidden'));
+
+    // fade-up/scale-in on view
+    const io = new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{
+        if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    },{threshold: .2});
+    document.querySelectorAll('.fade-up,.scale-in').forEach(el=>io.observe(el));
+
+    // parallax leggero sulle shapes
+    const shapes = document.querySelectorAll('.abs-shape');
+    window.addEventListener('mousemove', (e)=>{
+      const x = (e.clientX / window.innerWidth - .5) * 10;
+      const y = (e.clientY / window.innerHeight - .5) * 10;
+      shapes.forEach((s,i)=>{
+        s.style.transform = `translate(${x*(i+1)/4}px, ${y*(i+1)/4}px)`;
+      });
+    }, {passive:true});
+  </script>
+</body>
+</html>
