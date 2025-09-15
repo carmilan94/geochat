@@ -33,18 +33,19 @@
     <h1 class="text-2xl font-extrabold mb-2">Chat vicino a te</h1>
     <p class="opacity-85">Vedi le chat disponibili, la distanza (se concedi la posizione) e apri le indicazioni.</p>
 
+    <!-- toolbar posizione + ordinamento -->
     <div class="mt-3 flex flex-wrap items-center gap-3">
       <button id="btnLocate" class="chip px-4 py-2 rounded-lg">📍 Usa la mia posizione</button>
       <span id="locState" class="opacity-70 text-sm">Posizione non disponibile</span>
 
-      <!-- NUOVO: Ordina per distanza -->
+      <!-- ⬇️ QUI il bottone di ordinamento -->
       <button id="btnSort" class="chip px-3 py-2 rounded-lg disabled" title="Richiede la posizione">
         Ordina per distanza (vicino→lontano)
       </button>
       <span id="sortState" class="opacity-70 text-sm"></span>
     </div>
 
-    <!-- Barra di ricerca città -->
+    <!-- barra ricerca città -->
     <div class="mt-3 flex flex-wrap items-center gap-3">
       <input id="cityInput"
              class="chip px-3 py-2 rounded-lg bg-transparent outline-none"
@@ -87,9 +88,9 @@
 
   let myPos=null;
   let cityFilter='';
-  let sortByDistance=false; // NUOVO: stato ordinamento
+  let sortByDistance=false; // stato ordinamento
 
-  // === Mappa COMPLETA sigle provincia ⇄ nome ===
+  // Mappa COMPLETA sigle provincia ⇄ nome
   const PROV = {
     "ag":"agrigento","al":"alessandria","an":"ancona","ao":"aosta","ap":"ascoli piceno","aq":"l'aquila","ar":"arezzo","at":"asti","av":"avellino",
     "ba":"bari","bt":"barletta-andria-trani","bl":"belluno","bn":"benevento","bg":"bergamo","bi":"biella","bo":"bologna","bz":"bolzano","bs":"brescia","br":"brindisi",
@@ -139,25 +140,25 @@
     try{
       let query = sb.from('rooms').select('*').order('created_at',{ascending:false}).limit(100);
 
-      // tenta filtro server-side per ridurre dati
+      // tenta filtro server-side
       if (cityFilter){
         query = query.or(`city.ilike.%${cityFilter}%,address.ilike.%${cityFilter}%`);
       }
       let { data, error } = await query;
 
-      // fallback: se errore (colonne mancanti), ricarico senza filtro
+      // fallback senza filtro se errore
       if (error){
         const r = await sb.from('rooms').select('*').order('created_at',{ascending:false}).limit(100);
         if (r.error) throw r.error;
         data = r.data||[];
       }
 
-      // filtro client-side intelligente (nomi ↔ sigle)
+      // filtro client-side intelligente (nomi↔sigle)
       if (cityFilter){
         data = (data||[]).filter(r => matchesCityOrProvince(r, cityFilter));
       }
 
-      // calcolo distanza (se ho myPos e ci sono coordinate)
+      // distanza (se posizione presente)
       data = (data||[]).map(r=>{
         const hasCoords = r.center_lat!=null && r.center_lng!=null;
         let distKm = null;
@@ -167,29 +168,21 @@
         return {...r, _distKm: distKm};
       });
 
-      // ORDINAMENTO PER DISTANZA (NUOVO)
+      // ordinamento per distanza
       if (sortByDistance && myPos){
         data.sort((a,b)=>{
-          // elementi senza distanza finiscono in fondo
           if (a._distKm==null && b._distKm==null) return 0;
           if (a._distKm==null) return 1;
           if (b._distKm==null) return -1;
-          return a._distKm - b._distKm; // vicino → lontano
+          return a._distKm - b._distKm;
         });
       }
 
       // render
       data.forEach(r=>{
-        const distTxt = (r._distKm!=null)
-          ? r._distKm.toFixed(1)+' km'
-          : 'distanza sconosciuta';
-
-        const mapsQuery = r.address || (
-          (r.center_lat!=null && r.center_lng!=null)
-            ? `${r.center_lat},${r.center_lng}` : ''
-        );
+        const distTxt = (r._distKm!=null) ? r._distKm.toFixed(1)+' km' : 'distanza sconosciuta';
+        const mapsQuery = r.address || ((r.center_lat!=null && r.center_lng!=null) ? `${r.center_lat},${r.center_lng}` : '');
         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
-
         const card = document.createElement('div');
         card.className='glass rounded-2xl p-4 flex flex-col gap-3';
         card.innerHTML = `
@@ -207,7 +200,6 @@
         container.appendChild(card);
       });
 
-      // stati UI
       document.getElementById('filterState').textContent =
         cityFilter ? `Filtro: "${cityFilter}"` : '';
 
@@ -223,7 +215,6 @@
     navigator.geolocation.getCurrentPosition(pos=>{
       myPos = { lat:pos.coords.latitude, lng:pos.coords.longitude };
       document.getElementById('locState').textContent = 'Posizione acquisita ✅';
-      // abilita bottone sort
       updateSortButton(true);
       loadRooms();
     }, _=>{
@@ -232,10 +223,9 @@
     }, { enableHighAccuracy:true, maximumAge:0, timeout:10000 });
   };
 
-  // ordinamento per distanza (toggle)
+  // toggle ordinamento per distanza
   document.getElementById('btnSort').onclick = ()=>{
     if (!myPos){
-      // prova a chiedere ora la posizione
       navigator.geolocation.getCurrentPosition(pos=>{
         myPos = { lat:pos.coords.latitude, lng:pos.coords.longitude };
         document.getElementById('locState').textContent = 'Posizione acquisita ✅';
@@ -243,13 +233,11 @@
         updateSortButton(true);
         loadRooms();
       }, _=>{
-        // niente permesso → resta disabilitato
         document.getElementById('locState').textContent = 'Posizione non disponibile ❌';
         updateSortButton(false);
       }, { enableHighAccuracy:true, maximumAge:0, timeout:10000 });
       return;
     }
-    // toggle on/off
     sortByDistance = !sortByDistance;
     updateSortButton(true);
     loadRooms();
@@ -282,6 +270,24 @@
       e.preventDefault();
       cityFilter = e.target.value.trim();
       loadRooms();
+    }
+  });
+
+  // click delegato sui pulsanti card
+  document.addEventListener('click', async (e)=>{
+    const mapsBtn = e.target.closest('[data-action="maps"]');
+    if (mapsBtn){
+      const url = mapsBtn.getAttribute('data-url');
+      if (!await requireAuthOrRedirect(url)) return;
+      location.href = url;
+      return;
+    }
+    const joinBtn = e.target.closest('[data-action="join"]');
+    if (joinBtn){
+      const room = joinBtn.getAttribute('data-room');
+      const next = `join.html?room=${encodeURIComponent(room)}`;
+      if (!await requireAuthOrRedirect(next)) return;
+      location.href = next;
     }
   });
 
