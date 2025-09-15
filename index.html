@@ -40,7 +40,7 @@
     <div class="mt-3 flex flex-wrap items-center gap-3">
       <input id="cityInput"
              class="chip px-3 py-2 rounded-lg bg-transparent outline-none"
-             placeholder="Cerca città… (es. Napoli)" />
+             placeholder="Cerca città… (es. Napoli o NA)" />
       <button id="btnFilter" class="chip px-3 py-2 rounded-lg">Filtra</button>
       <button id="btnClear" class="chip px-3 py-2 rounded-lg">Rimuovi filtro</button>
       <span id="filterState" class="opacity-70 text-sm"></span>
@@ -82,34 +82,49 @@
 
   loadRooms();
 
-  // === Mappa sigle provincia ⇄ nome (bastano questi per ora; estendibile) ===
+  // === Mappa COMPLETA sigle provincia ⇄ nome ===
+  // chiave in minuscolo (sigla) -> nome provincia in minuscolo
   const PROV = {
-    'na':'napoli','mi':'milano','rm':'roma','to':'torino','fi':'firenze','ge':'genova','ve':'venezia',
-    'ba':'bari','bo':'bologna','pa':'palermo','ct':'catania','sa':'salerno','ce':'caserta','bn':'benevento','av':'avellino'
+    "ag":"agrigento","al":"alessandria","an":"ancona","ao":"aosta","ap":"ascoli piceno","aq":"l'aquila","ar":"arezzo","at":"asti","av":"avellino",
+    "ba":"bari","bt":"barletta-andria-trani","bl":"belluno","bn":"benevento","bg":"bergamo","bi":"biella","bo":"bologna","bz":"bolzano","bs":"brescia","br":"brindisi",
+    "ca":"cagliari","cl":"caltanissetta","cb":"campobasso","ce":"caserta","ct":"catania","cz":"catanzaro","ch":"chieti","co":"como","cs":"cosenza","cr":"cremona","kr":"crotone","cn":"cuneo",
+    "en":"enna","fm":"fermo","fe":"ferrara","fi":"firenze","fg":"foggia","fc":"forli-cesena","fr":"frosinone",
+    "ge":"genova","go":"gorizia","gr":"grosseto",
+    "im":"imperia","is":"isernia",
+    "sp":"la spezia","lt":"latina","le":"lecce","lc":"lecco","li":"livorno","lo":"lodi","lu":"lucca",
+    "mc":"macerata","mn":"mantova","ms":"massa-carrara","mt":"matera","me":"messina","mi":"milano","mo":"modena","mb":"monza e della brianza",
+    "na":"napoli","no":"novara","nu":"nuoro","or":"oristano",
+    "pd":"padova","pa":"palermo","pr":"parma","pv":"pavia","pg":"perugia","pu":"pesaro e urbino","pe":"pescara","pc":"piacenza","pi":"pisa","pt":"pistoia","pn":"pordenone","pz":"potenza","po":"prato",
+    "rg":"ragusa","ra":"ravenna","rc":"reggio calabria","re":"reggio emilia","ri":"rieti","rn":"rimini","rm":"roma","ro":"rovigo",
+    "sa":"salerno","ss":"sassari","sv":"savona","si":"siena","sr":"siracusa","so":"sondrio","su":"sud sardegna",
+    "ta":"taranto","te":"teramo","tr":"terni","to":"torino","tp":"trapani","tn":"trento","tv":"treviso","ts":"trieste",
+    "ud":"udine",
+    "va":"varese","ve":"venezia","vb":"verbano-cusio-ossola","vc":"vercelli","vr":"verona","vv":"vibo valentia","vi":"vicenza","vt":"viterbo"
   };
 
   const normalize = s => (s||'').toString().toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // senza accenti
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // rimuove accenti
     .replace(/[()]/g,' '); // ignora parentesi
 
   function buildAliases(term){
     const t = normalize(term).trim();
     const aliases = new Set([t]);
-    // se l'utente scrive "napoli" → aggiungi "na"; se scrive "na" → aggiungi "napoli"
+    // Se l'utente scrive il nome provincia → aggiungi la sigla. Se scrive la sigla → aggiungi il nome.
     for (const [code,name] of Object.entries(PROV)){
-      if (t === name) aliases.add(code);       // Napoli -> na
-      if (t === code) aliases.add(name);       // na -> napoli
+      if (t === name) aliases.add(code);
+      if (t === code) aliases.add(name);
     }
     return [...aliases];
   }
 
   function matchesCityOrProvince(room, term){
+    // cerco dentro address + city (se esistono)
     const hay = normalize((room.address||'') + ' ' + (room.city||''));
     const aliases = buildAliases(term);
     return aliases.some(a => hay.includes(a));
   }
 
-  // carica stanze (con filtro città lato DB quando possibile + controllo smart client-side)
+  // carica stanze (con filtro lato DB quando possibile + controllo smart client-side)
   async function loadRooms(){
     const container = document.getElementById('list');
     container.innerHTML = '';
@@ -117,19 +132,19 @@
     try{
       let query = sb.from('rooms').select('*').order('created_at',{ascending:false}).limit(100);
       if (cityFilter){
-        // tenta filtro sul DB
+        // tenta filtro sul DB (se le colonne esistono)
         query = query.or(`city.ilike.%${cityFilter}%,address.ilike.%${cityFilter}%`);
       }
       let { data, error } = await query;
 
-      // se errore con or (colonne mancanti) ricarico e filtro client-side
+      // se errore (colonne non presenti) ricarico senza filtro e filtro client-side
       if (error){
         const r = await sb.from('rooms').select('*').order('created_at',{ascending:false}).limit(100);
         if (r.error) throw r.error;
         data = r.data||[];
       }
 
-      // filtro client-side intelligente per gestire sigle tipo (NA)
+      // filtro client-side “intelligente” per nomi e sigle (NA↔Napoli, ecc.)
       if (cityFilter){
         data = (data||[]).filter(r => matchesCityOrProvince(r, cityFilter));
       }
@@ -159,7 +174,7 @@
       });
 
       document.getElementById('filterState').textContent =
-        cityFilter ? `Filtro città: "${cityFilter}"` : '';
+        cityFilter ? `Filtro: "${cityFilter}"` : '';
     } catch(e){
       console.error(e);
       container.innerHTML = `<div class="glass rounded-2xl p-4">Errore nel caricamento. Riprova più tardi.</div>`;
