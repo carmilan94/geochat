@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GeoChat • Crea chat</title>
+  <title>GeoChat • Crea chat (debug)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233;}
@@ -12,6 +12,7 @@
     .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
     .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
     #map{height:420px}
+    .debug-badge{position:fixed;bottom:10px;left:10px;background:#111;border:1px solid #333;padding:6px 10px;border-radius:10px;font-size:12px;opacity:.9}
   </style>
   <!-- Google Maps -->
   <script async
@@ -74,7 +75,10 @@
   </aside>
 </main>
 
+<div class="debug-badge">DEBUG attivo</div>
+
 <script>
+  const DEBUG = true;
   // ---- CONFIG
   const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
@@ -90,7 +94,6 @@
     } else {
       link.textContent = 'Entra';
       link.href = 'auth.html';
-      // redirect alla login se non loggato
       location.href = 'auth.html?next=create.html';
       return;
     }
@@ -145,74 +148,67 @@
 
   // Crea stanza
   document.getElementById('createBtn').onclick = async ()=>{
-    if (!polygon){ alert('Disegna prima il perimetro.'); return; }
-    const name = document.getElementById('roomName').value.trim();
-    if (!name){ alert('Inserisci il nome della chat.'); return; }
-
-    // centro
-    const bounds = new google.maps.LatLngBounds();
-    polygon.getPath().forEach(p=>bounds.extend(p));
-    const center = bounds.getCenter();
-
-    // geojson chiuso
-    const coords = [];
-    polygon.getPath().forEach(p=> coords.push([p.lng(), p.lat()]) );
-    if (coords.length && (coords[0][0]!==coords.at(-1)[0] || coords[0][1]!==coords.at(-1)[1])) coords.push(coords[0]);
-    const geojson = { type:'Polygon', coordinates:[coords] };
-
-    // indirizzo dal marker o dal centro
-    let address = '';
-    const geocoder = new google.maps.Geocoder();
-    const latlng = marker ? marker.getPosition() : center;
     try{
-      const res = await geocoder.geocode({location:latlng});
-      address = res?.results?.[0]?.formatted_address || '';
-    }catch{}
+      if (!polygon){ alert('Disegna prima il perimetro.'); return; }
+      const name = document.getElementById('roomName').value.trim();
+      if (!name){ alert('Inserisci il nome della chat.'); return; }
 
-    // 🔐 prendi l'utente loggato per rispettare le policy RLS
-    const { data: userRes } = await sb.auth.getUser();
-    const ownerId = userRes?.user?.id || null;
+      // centro
+      const bounds = new google.maps.LatLngBounds();
+      polygon.getPath().forEach(p=>bounds.extend(p));
+      const center = bounds.getCenter();
 
-    // Payload: tienilo in variabile per mostrarlo in caso di errore
-    const payload = {
-      name,
-      description: document.getElementById('desc').value.trim() || null,
-      address: address || null,
-      polygon: geojson,                 // <-- se la tua colonna non è JSONB ma GEOMETRY, lo vediamo subito dall'errore
-      center_lat: center.lat(),
-      center_lng: center.lng(),
-      owner_id: ownerId,
-      is_active: true,
-      featured: false
-    };
+      // geojson chiuso
+      const coords = [];
+      polygon.getPath().forEach(p=> coords.push([p.lng(), p.lat()]) );
+      if (coords.length && (coords[0][0]!==coords.at(-1)[0] || coords[0][1]!==coords.at(-1)[1])) coords.push(coords[0]);
+      const geojson = { type:'Polygon', coordinates:[coords] };
 
-    // INSERT
-    const { data, error } = await sb.from('rooms')
-      .insert(payload)
-      .select('id')
-      .single();
+      // indirizzo dal marker o dal centro
+      let address = '';
+      const geocoder = new google.maps.Geocoder();
+      const latlng = marker ? marker.getPosition() : center;
+      try{
+        const res = await geocoder.geocode({location:latlng});
+        address = res?.results?.[0]?.formatted_address || '';
+      }catch{}
 
-    if (error){
-      console.error('INSERT ERROR:', error, 'PAYLOAD:', payload);
-      alert(
-        'Errore Supabase:\n' +
-        (error.message || '—') + '\n\n' +
-        'Dettagli: ' + (error.details || '—') + '\n' +
-        'Hint: ' + (error.hint || '—') + '\n\n' +
-        'Nota: Se dice che una colonna non esiste o tipo errato, me lo incolli qui.'
-      );
-      return;
+      // 🔐 utente loggato
+      const { data: userRes, error: userErr } = await sb.auth.getUser();
+      if (userErr) throw new Error('auth.getUser() error: '+userErr.message);
+      const ownerId = userRes?.user?.id || null;
+      if (!ownerId) { alert('Non risulta un utente loggato. Torna indietro e accedi.'); return; }
+
+      const payload = {
+        name,
+        description: document.getElementById('desc').value.trim() || null,
+        address: address || null,
+        polygon: geojson,
+        center_lat: center.lat(),
+        center_lng: center.lng(),
+        owner_id: ownerId,
+        is_active: true,
+        featured: false
+      };
+
+      const { data, error } = await sb.from('rooms').insert(payload).select('id').single();
+      if (error){
+        console.error('INSERT ERROR:', error, 'PAYLOAD:', payload);
+        alert('ERRORE SUPABASE:\n' + JSON.stringify(error, null, 2));
+        return;
+      }
+
+      const link = `${location.origin.replace(/\/$/,'')}/join.html?room=${encodeURIComponent(data.id)}`;
+      document.getElementById('roomLink').textContent = link;
+      const qr = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(link)}`;
+      const img = document.getElementById('qrImg'); img.src = qr; img.alt = 'QR stanza';
+      document.getElementById('qrWrap').classList.remove('hidden');
+
+      alert('Stanza creata! Scannerizza il QR o apri il link per il check-in.');
+    } catch (e) {
+      console.error('UNHANDLED ERROR:', e);
+      alert('ERRORE GENERICO:\n' + (e?.message || e));
     }
-
-    const link = `${location.origin.replace(/\/$/,'')}/join.html?room=${encodeURIComponent(data.id)}`;
-
-    // QR rapido via servizio
-    document.getElementById('roomLink').textContent = link;
-    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(link)}`;
-    const img = document.getElementById('qrImg'); img.src = qr; img.alt = 'QR stanza';
-    document.getElementById('qrWrap').classList.remove('hidden');
-
-    alert('Stanza creata! Scannerizza il QR o apri il link per il check-in.');
   };
 </script>
 </body>
