@@ -56,7 +56,7 @@
   <aside class="glass rounded-2xl p-5">
     <h2 class="text-lg font-bold mb-3">2) Dettagli & link/QR</h2>
 
-    <!-- ✅ NUOVO: Nome chat obbligatorio -->
+    <!-- ✅ Nome chat obbligatorio -->
     <label for="roomName" class="text-sm block mb-1 opacity-80">Nome della chat <span class="opacity-70">(obbligatorio)</span></label>
     <input id="roomName" class="w-full chip rounded-lg p-3 mb-3" placeholder="Es. IMIN · Bar Centrale" maxlength="80" />
 
@@ -64,7 +64,7 @@
     <textarea id="desc" class="w-full chip rounded-lg p-3 h-28 mb-3"
       placeholder="Es. Chat del Bar Centrale solo per chi è dentro il locale"></textarea>
 
-    <button id="createBtn" class="btn-main w-full rounded-lg py-2.5" disabled>Creа chat & genera QR</button>
+    <button id="createBtn" class="btn-main w-full rounded-lg py-2.5" disabled>Crea chat & genera QR</button>
 
     <div id="qrWrap" class="hidden mt-5 text-center">
       <h3 class="font-bold mb-2">QR della stanza</h3>
@@ -80,7 +80,7 @@
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  // auth link
+  // 🔑 Se non sei loggato → vai al login e poi torna qui
   (async ()=>{
     const { data: { session } } = await sb.auth.getSession();
     const link = document.getElementById('authLink');
@@ -90,6 +90,9 @@
     } else {
       link.textContent = 'Entra';
       link.href = 'auth.html';
+      // redirect alla login se non loggato
+      location.href = 'auth.html?next=create.html';
+      return;
     }
   })();
 
@@ -151,7 +154,7 @@
     polygon.getPath().forEach(p=>bounds.extend(p));
     const center = bounds.getCenter();
 
-    // geojson
+    // geojson chiuso
     const coords = [];
     polygon.getPath().forEach(p=> coords.push([p.lng(), p.lat()]) );
     if (coords.length && (coords[0][0]!==coords.at(-1)[0] || coords[0][1]!==coords.at(-1)[1])) coords.push(coords[0]);
@@ -166,19 +169,26 @@
       address = res?.results?.[0]?.formatted_address || '';
     }catch{}
 
+    // 🔐 prendi l'utente loggato per rispettare le policy RLS
+    const { data: userRes } = await sb.auth.getUser();
+    const ownerId = userRes?.user?.id || null;
+
+    // ⚠️ NON impostare manualmente "id": lascia il default (uuid) del DB
     const { data, error } = await sb.from('rooms').insert({
-      id: crypto.randomUUID().slice(0,8),
       name,
       description: document.getElementById('desc').value.trim(),
       address,
       polygon: geojson,
       center_lat: center.lat(),
-      center_lng: center.lng()
+      center_lng: center.lng(),
+      owner_id: ownerId,
+      is_active: true,
+      featured: false
     }).select('id').single();
 
     if (error){ console.error(error); alert('Impossibile creare la chat.'); return; }
 
-    const link = `${location.origin}/join.html?room=${encodeURIComponent(data.id)}`;
+    const link = `${location.origin.replace(/\/$/,'')}/join.html?room=${encodeURIComponent(data.id)}`;
 
     // QR rapido via servizio
     document.getElementById('roomLink').textContent = link;
