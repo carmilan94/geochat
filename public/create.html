@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GeoChat • Crea chat (debug)</title>
+  <title>GeoChat • Crea chat (test minimo)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233;}
@@ -12,12 +12,9 @@
     .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
     .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
     #map{height:420px}
-    .debug-badge{position:fixed;bottom:10px;left:10px;background:#111;border:1px solid #333;padding:6px 10px;border-radius:10px;font-size:12px;opacity:.9}
   </style>
-  <!-- Google Maps -->
-  <script async
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=places,geometry,drawing&callback=initMap">
-  </script>
+  <!-- Google Maps (ok anche se non usiamo ancora il poligono) -->
+  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=places,geometry,drawing&callback=initMap"></script>
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -37,35 +34,20 @@
 
 <main class="max-w-6xl mx-auto px-4 pb-24 grid md:grid-cols-3 gap-6">
   <section class="md:col-span-2 glass rounded-2xl p-5">
-    <h2 class="text-lg font-bold mb-3">1) Cerca indirizzo/attività & disegna il perimetro</h2>
-
-    <div class="flex gap-2 mb-3">
-      <input id="placeInput" class="flex-1 chip rounded-lg px-3 py-2" placeholder="Via/locale (es. Pizzeria Da Mario)" />
-      <button id="btnSearch" class="chip rounded-lg px-4">Cerca</button>
-    </div>
-
-    <div class="flex gap-2 mb-3">
-      <button id="drawBtn" class="chip px-3 py-1.5 rounded-lg">✏️ Disegna</button>
-      <button id="editBtn" class="chip px-3 py-1.5 rounded-lg">✂️ Modifica</button>
-      <button id="clearBtn" class="chip px-3 py-1.5 rounded-lg">🗑️ Elimina</button>
-    </div>
-
+    <h2 class="text-lg font-bold mb-3">1) (per ora ignoriamo il poligono) </h2>
     <div id="map" class="rounded-xl overflow-hidden"></div>
-    <p class="mt-2 text-xs opacity-70">Disegna un <b>poligono</b> intorno al locale. Per rimuovere un vertice: click destro su quel punto.</p>
   </section>
 
   <aside class="glass rounded-2xl p-5">
     <h2 class="text-lg font-bold mb-3">2) Dettagli & link/QR</h2>
 
-    <!-- Nome chat obbligatorio -->
     <label for="roomName" class="text-sm block mb-1 opacity-80">Nome della chat <span class="opacity-70">(obbligatorio)</span></label>
     <input id="roomName" class="w-full chip rounded-lg p-3 mb-3" placeholder="Es. IMIN · Bar Centrale" maxlength="80" />
 
     <label class="text-sm block mb-1 opacity-80">Descrizione (opzionale)</label>
-    <textarea id="desc" class="w-full chip rounded-lg p-3 h-28 mb-3"
-      placeholder="Es. Chat del Bar Centrale solo per chi è dentro il locale"></textarea>
+    <textarea id="desc" class="w-full chip rounded-lg p-3 h-28 mb-3" placeholder="Es. Chat del Bar Centrale…"></textarea>
 
-    <button id="createBtn" class="btn-main w-full rounded-lg py-2.5" disabled>Crea chat & genera QR</button>
+    <button id="createBtn" class="btn-main w-full rounded-lg py-2.5">Crea chat (test minimo)</button>
 
     <div id="qrWrap" class="hidden mt-5 text-center">
       <h3 class="font-bold mb-2">QR della stanza</h3>
@@ -75,16 +57,13 @@
   </aside>
 </main>
 
-<div class="debug-badge">DEBUG attivo</div>
-
 <script>
-  const DEBUG = true;
   // ---- CONFIG
   const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  // 🔑 Se non sei loggato → vai al login e poi torna qui
+  // login check
   (async ()=>{
     const { data: { session } } = await sb.auth.getSession();
     const link = document.getElementById('authLink');
@@ -99,116 +78,43 @@
     }
   })();
 
-  let map, marker, drawingManager, polygon=null;
-
+  // Mappa “finta” per ora
   window.initMap = function(){
-    map = new google.maps.Map(document.getElementById('map'),{
-      center:{lat:41.9028,lng:12.4964}, zoom:14, streetViewControl:false, mapTypeControl:true
+    new google.maps.Map(document.getElementById('map'),{
+      center:{lat:41.9028,lng:12.4964}, zoom:12, streetViewControl:false, mapTypeControl:true
     });
-
-    // Disegno
-    drawingManager = new google.maps.drawing.DrawingManager({
-      drawingMode: null,
-      drawingControl:false,
-      polygonOptions: { editable:true, fillColor:'#00ff80', fillOpacity:.25, strokeColor:'#00ff80' }
-    });
-    drawingManager.setMap(map);
-    google.maps.event.addListener(drawingManager,'polygoncomplete',poly=>{
-      if (polygon) polygon.setMap(null);
-      polygon = poly;
-      updateCreateEnabled();
-    });
-
-    // Cerca
-    const input = document.getElementById('placeInput');
-    const ac = new google.maps.places.Autocomplete(input);
-    ac.addListener('place_changed',()=>{
-      const place = ac.getPlace();
-      if (!place.geometry) return;
-      map.panTo(place.geometry.location);
-      map.setZoom(18);
-      if (marker) marker.setMap(null);
-      marker = new google.maps.Marker({position:place.geometry.location, map, animation:'DROP'});
-    });
-    document.getElementById('btnSearch').onclick = ()=> google.maps.event.trigger(ac,'place_changed');
-
-    // toolbar
-    document.getElementById('drawBtn').onclick = ()=> drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
-    document.getElementById('editBtn').onclick = ()=> { if (polygon) polygon.setEditable(true); };
-    document.getElementById('clearBtn').onclick = ()=> { if (polygon){ polygon.setMap(null); polygon=null; } if (marker){ marker.setMap(null); marker=null; } updateCreateEnabled(); };
-
-    document.getElementById('roomName').addEventListener('input', updateCreateEnabled);
   }
 
-  function updateCreateEnabled(){
-    const hasName = !!document.getElementById('roomName').value.trim();
-    const hasPoly = !!polygon;
-    document.getElementById('createBtn').disabled = !(hasName && hasPoly);
-  }
-
-  // Crea stanza
+  // Crea stanza (SOLO nome + owner_id)
   document.getElementById('createBtn').onclick = async ()=>{
-    try{
-      if (!polygon){ alert('Disegna prima il perimetro.'); return; }
-      const name = document.getElementById('roomName').value.trim();
-      if (!name){ alert('Inserisci il nome della chat.'); return; }
+    const name = document.getElementById('roomName').value.trim();
+    if (!name){ alert('Inserisci il nome della chat.'); return; }
 
-      // centro
-      const bounds = new google.maps.LatLngBounds();
-      polygon.getPath().forEach(p=>bounds.extend(p));
-      const center = bounds.getCenter();
+    const { data: userRes } = await sb.auth.getUser();
+    const ownerId = userRes?.user?.id || null;
 
-      // geojson chiuso
-      const coords = [];
-      polygon.getPath().forEach(p=> coords.push([p.lng(), p.lat()]) );
-      if (coords.length && (coords[0][0]!==coords.at(-1)[0] || coords[0][1]!==coords.at(-1)[1])) coords.push(coords[0]);
-      const geojson = { type:'Polygon', coordinates:[coords] };
+    const payload = {
+      name,
+      description: document.getElementById('desc').value.trim() || null,
+      owner_id: ownerId,
+      is_active: true,
+      featured: false
+    };
 
-      // indirizzo dal marker o dal centro
-      let address = '';
-      const geocoder = new google.maps.Geocoder();
-      const latlng = marker ? marker.getPosition() : center;
-      try{
-        const res = await geocoder.geocode({location:latlng});
-        address = res?.results?.[0]?.formatted_address || '';
-      }catch{}
-
-      // 🔐 utente loggato
-      const { data: userRes, error: userErr } = await sb.auth.getUser();
-      if (userErr) throw new Error('auth.getUser() error: '+userErr.message);
-      const ownerId = userRes?.user?.id || null;
-      if (!ownerId) { alert('Non risulta un utente loggato. Torna indietro e accedi.'); return; }
-
-      const payload = {
-        name,
-        description: document.getElementById('desc').value.trim() || null,
-        address: address || null,
-        polygon: geojson,
-        center_lat: center.lat(),
-        center_lng: center.lng(),
-        owner_id: ownerId,
-        is_active: true,
-        featured: false
-      };
-
-      const { data, error } = await sb.from('rooms').insert(payload).select('id').single();
-      if (error){
-        console.error('INSERT ERROR:', error, 'PAYLOAD:', payload);
-        alert('ERRORE SUPABASE:\n' + JSON.stringify(error, null, 2));
-        return;
-      }
-
-      const link = `${location.origin.replace(/\/$/,'')}/join.html?room=${encodeURIComponent(data.id)}`;
-      document.getElementById('roomLink').textContent = link;
-      const qr = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(link)}`;
-      const img = document.getElementById('qrImg'); img.src = qr; img.alt = 'QR stanza';
-      document.getElementById('qrWrap').classList.remove('hidden');
-
-      alert('Stanza creata! Scannerizza il QR o apri il link per il check-in.');
-    } catch (e) {
-      console.error('UNHANDLED ERROR:', e);
-      alert('ERRORE GENERICO:\n' + (e?.message || e));
+    const { data, error } = await sb.from('rooms').insert(payload).select('id').single();
+    if (error){
+      console.error('INSERT ERROR (min):', error, payload);
+      alert('ERRORE SUPABASE (min):\n' + JSON.stringify(error, null, 2));
+      return;
     }
+
+    const link = `${location.origin.replace(/\/$/,'')}/join.html?room=${encodeURIComponent(data.id)}`;
+    document.getElementById('roomLink').textContent = link;
+    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(link)}`;
+    const img = document.getElementById('qrImg'); img.src = qr; img.alt = 'QR stanza';
+    document.getElementById('qrWrap').classList.remove('hidden');
+
+    alert('OK! Stanza creata.');
   };
 </script>
 </body>
