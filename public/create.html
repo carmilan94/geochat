@@ -3,237 +3,191 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>IMIN · Crea la tua chat</title>
+  <title>GeoChat • Crea chat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
-    .wrap { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
-    header { padding: 12px 16px; border-bottom: 1px solid #eee; display:flex; gap:12px; align-items:center; }
-    header h1 { font-size: 18px; margin: 0; }
-    main { display: grid; grid-template-columns: 340px 1fr; gap: 16px; padding: 16px; }
-    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
-    .card { border: 1px solid #eee; border-radius: 12px; padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); background: #fff; }
-    label { display:block; font-size: 13px; margin-bottom: 6px; color:#444; }
-    input[type="text"], textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px; outline: none; font-size: 14px; }
-    input[type="text"]:focus, textarea:focus { border-color: #111; }
-    .muted { color: #666; font-size: 12px; }
-    .row { display: grid; grid-template-columns: 1fr; gap: 10px; }
-    .actions { display:flex; gap:10px; flex-wrap: wrap; align-items:center; }
-    button { padding: 10px 14px; border: 0; border-radius: 10px; background:#111; color:#fff; cursor:pointer; font-weight: 600; }
-    button[disabled] { opacity: .5; cursor: not-allowed; }
-    #map { width: 100%; height: 65vh; border: 1px solid #eee; border-radius: 12px; }
-    .ok { color: #0a7b34; font-weight: 600; }
-    .err { color: #b00020; font-weight: 600; }
-    .qr-box { display:none; }
-    .pill { display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; background:#f3f3f3; }
+    :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233;}
+    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea;}
+    .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
+    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
+    .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+    #map{height:420px}
   </style>
+  <!-- Google Maps -->
+  <script async
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=places,geometry,drawing&callback=initMap">
+  </script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <a href="./index.html" class="pill">← Home</a>
-    <h1>Crea la tua chat</h1>
-    <span class="muted">Disegna il perimetro e scegli un nome</span>
-  </header>
+<header class="w-full py-4 px-5 flex items-center justify-between">
+  <div class="flex items-center gap-2">
+    <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-bold text-black">GC</div>
+    <div class="font-extrabold text-xl">GeoChat</div>
+  </div>
+  <nav class="flex items-center gap-3 text-sm">
+    <a href="index.html" class="chip px-3 py-1.5 rounded-lg">Home</a>
+    <a href="create.html" class="btn-main px-3 py-1.5 rounded-lg">Crea la tua chat</a>
+    <a href="admin.html" class="chip px-3 py-1.5 rounded-lg">Admin</a>
+    <a id="authLink" href="auth.html" class="chip px-3 py-1.5 rounded-lg">Entra</a>
+  </nav>
+</header>
 
-  <main>
-    <section class="card" id="formCard">
-      <div class="row">
-        <!-- RIPRISTINATO: Campo Nome della chat -->
-        <div>
-          <label for="roomName">Nome della chat <span class="muted">(obbligatorio)</span></label>
-          <input type="text" id="roomName" placeholder="Es. IMIN · Bar Centrale" maxlength="80" />
-        </div>
+<main class="max-w-6xl mx-auto px-4 pb-24 grid md:grid-cols-3 gap-6">
+  <section class="md:col-span-2 glass rounded-2xl p-5">
+    <h2 class="text-lg font-bold mb-3">1) Cerca indirizzo/attività & disegna il perimetro</h2>
 
-        <div>
-          <label for="roomDesc">Descrizione <span class="muted">(opzionale)</span></label>
-          <textarea id="roomDesc" rows="3" placeholder="Descrivi a cosa serve questa chat"></textarea>
-        </div>
+    <div class="flex gap-2 mb-3">
+      <input id="placeInput" class="flex-1 chip rounded-lg px-3 py-2" placeholder="Via/locale (es. Pizzeria Da Mario)" />
+      <button id="btnSearch" class="chip rounded-lg px-4">Cerca</button>
+    </div>
 
-        <div class="muted">1) Clicca sul pulsante <strong>Disegna</strong> e traccia il poligono. 2) Premi <strong>Salva</strong>.</div>
-        <div class="actions">
-          <button id="drawBtn" type="button">✏️ Disegna perimetro</button>
-          <button id="clearBtn" type="button">🗑️ Annulla disegno</button>
-          <button id="saveBtn" type="button" disabled>💾 Salva chat</button>
-          <span id="status" class="muted"></span>
-        </div>
-      </div>
+    <div class="flex gap-2 mb-3">
+      <button id="drawBtn" class="chip px-3 py-1.5 rounded-lg">✏️ Disegna</button>
+      <button id="editBtn" class="chip px-3 py-1.5 rounded-lg">✂️ Modifica</button>
+      <button id="clearBtn" class="chip px-3 py-1.5 rounded-lg">🗑️ Elimina</button>
+    </div>
 
-      <hr style="margin:14px 0; border: none; border-top:1px solid #eee;" />
-      <div class="row">
-        <label>Mappa & perimetro</label>
-        <div id="map"></div>
-      </div>
-    </section>
+    <div id="map" class="rounded-xl overflow-hidden"></div>
+    <p class="mt-2 text-xs opacity-70">Disegna un <b>poligono</b> intorno al locale. Per rimuovere un vertice: click destro su quel punto.</p>
+  </section>
 
-    <aside class="card">
-      <h3 style="margin-top:0">QR code</h3>
-      <p class="muted">Dopo il salvataggio, genera e scarica il QR per far entrare le persone alla tua chat.</p>
-      <div class="actions">
-        <button id="qrBtn" type="button" disabled>Genera QR</button>
-        <a id="qrDownload" href="#" download style="display:none" class="pill">Scarica PNG</a>
-      </div>
-      <div class="qr-box" id="qrBox">
-        <div id="qrcode"></div>
-        <p id="qrLink" class="muted"></p>
-      </div>
-    </aside>
-  </main>
+  <aside class="glass rounded-2xl p-5">
+    <h2 class="text-lg font-bold mb-3">2) Dettagli & link/QR</h2>
 
-  <footer class="muted" style="padding:12px 16px; border-top:1px solid #eee;">IMIN · GeoChat</footer>
-</div>
+    <!-- ✅ NUOVO: Nome chat obbligatorio -->
+    <label for="roomName" class="text-sm block mb-1 opacity-80">Nome della chat <span class="opacity-70">(obbligatorio)</span></label>
+    <input id="roomName" class="w-full chip rounded-lg p-3 mb-3" placeholder="Es. IMIN · Bar Centrale" maxlength="80" />
 
-<!-- QRCode lib -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<!-- Supabase v2 -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <label class="text-sm block mb-1 opacity-80">Descrizione (opzionale)</label>
+    <textarea id="desc" class="w-full chip rounded-lg p-3 h-28 mb-3"
+      placeholder="Es. Chat del Bar Centrale solo per chi è dentro il locale"></textarea>
+
+    <button id="createBtn" class="btn-main w-full rounded-lg py-2.5" disabled>Creа chat & genera QR</button>
+
+    <div id="qrWrap" class="hidden mt-5 text-center">
+      <h3 class="font-bold mb-2">QR della stanza</h3>
+      <img id="qrImg" class="inline-block rounded-lg" alt="QR" />
+      <div class="mt-2 text-xs break-all opacity-80" id="roomLink"></div>
+    </div>
+  </aside>
+</main>
+
 <script>
-  // 🔧 Config – chiavi inserite
-  const SUPABASE_URL  = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // ---- CONFIG
+  const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  // ✅ Auth gate: se non loggato → redirect ad auth.html
-  (async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) window.location.href = './auth.html?next=create.html';
+  // auth link
+  (async ()=>{
+    const { data: { session } } = await sb.auth.getSession();
+    const link = document.getElementById('authLink');
+    if (session){
+      link.textContent = 'Esci';
+      link.onclick = async (e)=>{ e.preventDefault(); await sb.auth.signOut(); location.href='index.html'; }
+    } else {
+      link.textContent = 'Entra';
+      link.href = 'auth.html';
+    }
   })();
 
-  // 🌍 Google Maps init
-  let map, drawingManager, activePolygon = null;
-  let savedRoom = null; // conterrà l'oggetto stanza salvato
+  let map, marker, drawingManager, polygon=null;
 
-  function initMap() {
-    map = new google.maps.Map(document.getElementById('map'), {
-      center: { lat: 40.8518, lng: 14.2681 }, // Napoli default
-      zoom: 13,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
+  window.initMap = function(){
+    map = new google.maps.Map(document.getElementById('map'),{
+      center:{lat:41.9028,lng:12.4964}, zoom:14, streetViewControl:false, mapTypeControl:true
     });
 
+    // Disegno
     drawingManager = new google.maps.drawing.DrawingManager({
       drawingMode: null,
-      drawingControl: false,
-      polygonOptions: {
-        fillOpacity: 0.08,
-        strokeWeight: 2,
-        clickable: true,
-        editable: true,
-      }
+      drawingControl:false,
+      polygonOptions: { editable:true, fillColor:'#00ff80', fillOpacity:.25, strokeColor:'#00ff80' }
     });
     drawingManager.setMap(map);
-
-    google.maps.event.addListener(drawingManager, 'overlaycomplete', (e) => {
-      if (e.type === google.maps.drawing.OverlayType.POLYGON) {
-        if (activePolygon) activePolygon.setMap(null);
-        activePolygon = e.overlay;
-        drawingManager.setDrawingMode(null);
-        updateUIState();
-      }
+    google.maps.event.addListener(drawingManager,'polygoncomplete',poly=>{
+      if (polygon) polygon.setMap(null);
+      polygon = poly;
+      updateCreateEnabled();
     });
+
+    // Cerca
+    const input = document.getElementById('placeInput');
+    const ac = new google.maps.places.Autocomplete(input);
+    ac.addListener('place_changed',()=>{
+      const place = ac.getPlace();
+      if (!place.geometry) return;
+      map.panTo(place.geometry.location);
+      map.setZoom(18);
+      if (marker) marker.setMap(null);
+      marker = new google.maps.Marker({position:place.geometry.location, map, animation:'DROP'});
+    });
+    document.getElementById('btnSearch').onclick = ()=> google.maps.event.trigger(ac,'place_changed');
+
+    // toolbar
+    document.getElementById('drawBtn').onclick = ()=> drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+    document.getElementById('editBtn').onclick = ()=> { if (polygon) polygon.setEditable(true); };
+    document.getElementById('clearBtn').onclick = ()=> { if (polygon){ polygon.setMap(null); polygon=null; } if (marker){ marker.setMap(null); marker=null; } updateCreateEnabled(); };
+
+    document.getElementById('roomName').addEventListener('input', updateCreateEnabled);
   }
 
-  // Helpers
-  function polygonToGeoJSON(polygon) {
-    const path = polygon.getPath();
-    const coords = [];
-    for (let i = 0; i < path.getLength(); i++) {
-      const p = path.getAt(i);
-      coords.push([p.lng(), p.lat()]);
-    }
-    if (coords.length && (coords[0][0] !== coords[coords.length-1][0] || coords[0][1] !== coords[coords.length-1][1])) {
-      coords.push(coords[0]); // chiudi anello
-    }
-    return { type: 'Polygon', coordinates: [coords] };
+  function updateCreateEnabled(){
+    const hasName = !!document.getElementById('roomName').value.trim();
+    const hasPoly = !!polygon;
+    document.getElementById('createBtn').disabled = !(hasName && hasPoly);
   }
 
-  function updateUIState(msg) {
-    const nameOk = !!document.getElementById('roomName').value.trim();
-    const polyOk = !!activePolygon;
-    const saveBtn = document.getElementById('saveBtn');
-    saveBtn.disabled = !(nameOk && polyOk);
-
-    const qrBtn = document.getElementById('qrBtn');
-    qrBtn.disabled = !savedRoom;
-
-    if (msg) {
-      const st = document.getElementById('status');
-      st.textContent = msg.text;
-      st.className = msg.ok ? 'ok' : 'err';
-    }
-  }
-
-  // UI handlers
-  document.getElementById('drawBtn').addEventListener('click', () => {
-    if (activePolygon) { activePolygon.setMap(null); activePolygon = null; }
-    drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
-    updateUIState();
-  });
-
-  document.getElementById('clearBtn').addEventListener('click', () => {
-    if (activePolygon) { activePolygon.setMap(null); activePolygon = null; }
-    updateUIState({ text: 'Perimetro cancellato', ok: true });
-  });
-
-  document.getElementById('roomName').addEventListener('input', () => updateUIState());
-
-  document.getElementById('saveBtn').addEventListener('click', async () => {
+  // Crea stanza
+  document.getElementById('createBtn').onclick = async ()=>{
+    if (!polygon){ alert('Disegna prima il perimetro.'); return; }
     const name = document.getElementById('roomName').value.trim();
-    const desc = document.getElementById('roomDesc').value.trim();
-    if (!name) return updateUIState({ text: 'Inserisci il nome della chat', ok: false });
-    if (!activePolygon) return updateUIState({ text: 'Disegna il perimetro sulla mappa', ok: false });
+    if (!name){ alert('Inserisci il nome della chat.'); return; }
 
-    // valida minimo 3 vertici
-    if (activePolygon.getPath().getLength() < 3) return updateUIState({ text: 'Il poligono deve avere almeno 3 punti', ok: false });
+    // centro
+    const bounds = new google.maps.LatLngBounds();
+    polygon.getPath().forEach(p=>bounds.extend(p));
+    const center = bounds.getCenter();
 
-    const { data: { user } } = await supabase.auth.getUser();
-    const geojson = polygonToGeoJSON(activePolygon);
+    // geojson
+    const coords = [];
+    polygon.getPath().forEach(p=> coords.push([p.lng(), p.lat()]) );
+    if (coords.length && (coords[0][0]!==coords.at(-1)[0] || coords[0][1]!==coords.at(-1)[1])) coords.push(coords[0]);
+    const geojson = { type:'Polygon', coordinates:[coords] };
 
-    const payload = {
-      name: name,
-      description: desc || null,
+    // indirizzo dal marker o dal centro
+    let address = '';
+    const geocoder = new google.maps.Geocoder();
+    const latlng = marker ? marker.getPosition() : center;
+    try{
+      const res = await geocoder.geocode({location:latlng});
+      address = res?.results?.[0]?.formatted_address || '';
+    }catch{}
+
+    const { data, error } = await sb.from('rooms').insert({
+      id: crypto.randomUUID().slice(0,8),
+      name,
+      description: document.getElementById('desc').value.trim(),
+      address,
       polygon: geojson,
-      is_active: true,
-      featured: false,
-      owner_id: user?.id || null
-    };
+      center_lat: center.lat(),
+      center_lng: center.lng()
+    }).select('id').single();
 
-    const { data, error } = await supabase.from('rooms').insert(payload).select('*').single();
-    if (error) {
-      console.error(error);
-      updateUIState({ text: 'Errore salvataggio: ' + (error.message || 'verifica permessi RLS'), ok: false });
-      return;
-    }
+    if (error){ console.error(error); alert('Impossibile creare la chat.'); return; }
 
-    savedRoom = data;
-    updateUIState({ text: 'Chat salvata! Puoi generare il QR.', ok: true });
-  });
+    const link = `${location.origin}/join.html?room=${encodeURIComponent(data.id)}`;
 
-  document.getElementById('qrBtn').addEventListener('click', () => {
-    if (!savedRoom) return;
-    const joinUrl = new URL('./join.html', window.location.href);
-    joinUrl.searchParams.set('room', savedRoom.id);
+    // QR rapido via servizio
+    document.getElementById('roomLink').textContent = link;
+    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(link)}`;
+    const img = document.getElementById('qrImg'); img.src = qr; img.alt = 'QR stanza';
+    document.getElementById('qrWrap').classList.remove('hidden');
 
-    const box = document.getElementById('qrBox');
-    box.style.display = 'block';
-    document.getElementById('qrLink').textContent = joinUrl.toString();
-
-    const qrel = document.getElementById('qrcode');
-    qrel.innerHTML = '';
-    new QRCode(qrel, { text: joinUrl.toString(), width: 220, height: 220 });
-
-    // link download PNG
-    const canvas = qrel.querySelector('canvas');
-    if (canvas) {
-      const a = document.getElementById('qrDownload');
-      a.href = canvas.toDataURL('image/png');
-      a.download = `imin-qr-${savedRoom.id}.png`;
-      a.style.display = 'inline-block';
-    }
-  });
+    alert('Stanza creata! Scannerizza il QR o apri il link per il check-in.');
+  };
 </script>
-
-<!-- Google Maps JS (Drawing Library) -->
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=LA_TUA_CHIAVE&libraries=drawing&callback=initMap"></script>
 </body>
 </html>
