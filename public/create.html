@@ -56,7 +56,7 @@
   <aside class="glass rounded-2xl p-5">
     <h2 class="text-lg font-bold mb-3">2) Dettagli & link/QR</h2>
 
-    <!-- ✅ Nome chat obbligatorio -->
+    <!-- Nome chat obbligatorio -->
     <label for="roomName" class="text-sm block mb-1 opacity-80">Nome della chat <span class="opacity-70">(obbligatorio)</span></label>
     <input id="roomName" class="w-full chip rounded-lg p-3 mb-3" placeholder="Es. IMIN · Bar Centrale" maxlength="80" />
 
@@ -173,20 +173,36 @@
     const { data: userRes } = await sb.auth.getUser();
     const ownerId = userRes?.user?.id || null;
 
-    // ⚠️ NON impostare manualmente "id": lascia il default (uuid) del DB
-    const { data, error } = await sb.from('rooms').insert({
+    // Payload: tienilo in variabile per mostrarlo in caso di errore
+    const payload = {
       name,
-      description: document.getElementById('desc').value.trim(),
-      address,
-      polygon: geojson,
+      description: document.getElementById('desc').value.trim() || null,
+      address: address || null,
+      polygon: geojson,                 // <-- se la tua colonna non è JSONB ma GEOMETRY, lo vediamo subito dall'errore
       center_lat: center.lat(),
       center_lng: center.lng(),
       owner_id: ownerId,
       is_active: true,
       featured: false
-    }).select('id').single();
+    };
 
-    if (error){ console.error(error); alert('Impossibile creare la chat.'); return; }
+    // INSERT
+    const { data, error } = await sb.from('rooms')
+      .insert(payload)
+      .select('id')
+      .single();
+
+    if (error){
+      console.error('INSERT ERROR:', error, 'PAYLOAD:', payload);
+      alert(
+        'Errore Supabase:\n' +
+        (error.message || '—') + '\n\n' +
+        'Dettagli: ' + (error.details || '—') + '\n' +
+        'Hint: ' + (error.hint || '—') + '\n\n' +
+        'Nota: Se dice che una colonna non esiste o tipo errato, me lo incolli qui.'
+      );
+      return;
+    }
 
     const link = `${location.origin.replace(/\/$/,'')}/join.html?room=${encodeURIComponent(data.id)}`;
 
