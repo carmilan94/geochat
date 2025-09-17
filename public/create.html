@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GeoChat • Crea chat (debug)</title>
+  <title>GeoChat • Crea chat</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233;}
@@ -12,12 +12,9 @@
     .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
     .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
     #map{height:420px}
-    .debug-badge{position:fixed;bottom:10px;left:10px;background:#111;border:1px solid #333;padding:6px 10px;border-radius:10px;font-size:12px;opacity:.9}
   </style>
   <!-- Google Maps -->
-  <script async
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=places,geometry,drawing&callback=initMap">
-  </script>
+  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=places,geometry,drawing&callback=initMap"></script>
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -75,16 +72,13 @@
   </aside>
 </main>
 
-<div class="debug-badge">DEBUG attivo</div>
-
 <script>
-  const DEBUG = true;
   // ---- CONFIG
   const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  // 🔑 Se non sei loggato → vai al login e poi torna qui
+  // login check + navbar
   (async ()=>{
     const { data: { session } } = await sb.auth.getSession();
     const link = document.getElementById('authLink');
@@ -146,6 +140,21 @@
     document.getElementById('createBtn').disabled = !(hasName && hasPoly);
   }
 
+  // Helpers
+  function pathToClosedGeoJSON(poly){
+    const coords=[]; poly.getPath().forEach(p=> coords.push([p.lng(), p.lat()]));
+    if (coords.length && (coords[0][0]!==coords.at(-1)[0] || coords[0][1]!==coords.at(-1)[1])) coords.push(coords[0]);
+    return { type:'Polygon', coordinates:[coords] };
+  }
+
+  async function reverseGeocode(latlng){
+    try{
+      const geocoder = new google.maps.Geocoder();
+      const res = await geocoder.geocode({location:latlng});
+      return res?.results?.[0]?.formatted_address || null;
+    }catch{ return null; }
+  }
+
   // Crea stanza
   document.getElementById('createBtn').onclick = async ()=>{
     try{
@@ -153,56 +162,36 @@
       const name = document.getElementById('roomName').value.trim();
       if (!name){ alert('Inserisci il nome della chat.'); return; }
 
-      // centro
+      // centro del poligono
       const bounds = new google.maps.LatLngBounds();
       polygon.getPath().forEach(p=>bounds.extend(p));
       const center = bounds.getCenter();
 
-      // geojson chiuso
-      const coords = [];
-      polygon.getPath().forEach(p=> coords.push([p.lng(), p.lat()]) );
-      if (coords.length && (coords[0][0]!==coords.at(-1)[0] || coords[0][1]!==coords.at(-1)[1])) coords.push(coords[0]);
-      const geojson = { type:'Polygon', coordinates:[coords] };
-
-      // indirizzo dal marker o dal centro
-      let address = '';
-      const geocoder = new google.maps.Geocoder();
-      const latlng = marker ? marker.getPosition() : center;
-      try{
-        const res = await geocoder.geocode({location:latlng});
-        address = res?.results?.[0]?.formatted_address || '';
-      }catch{}
+      // costruisci dati
+      const geojson = pathToClosedGeoJSON(polygon);
+      const lat = center?.lat?.();  // possono essere undefined se succede qualcosa, ok
+      const lng = center?.lng?.();
+      const address = await reverseGeocode(marker ? marker.getPosition() : center);
 
       // 🔐 utente loggato
-      const { data: userRes, error: userErr } = await sb.auth.getUser();
-      if (userErr) throw new Error('auth.getUser() error: '+userErr.message);
+      const { data: userRes } = await sb.auth.getUser();
       const ownerId = userRes?.user?.id || null;
-      if (!ownerId) { alert('Non risulta un utente loggato. Torna indietro e accedi.'); return; }
+      if (!ownerId){ alert('Non risulta un utente loggato. Accedi e riprova.'); return; }
 
+      // payload: includo solo campi reali (null è ok perché le colonne ora sono nullable)
       const payload = {
         name,
         description: document.getElementById('desc').value.trim() || null,
-        address: address || null,
-        polygon: geojson,
-        center_lat: center.lat(),
-        center_lng: center.lng(),
         owner_id: ownerId,
-        is_active: true,
-        featured: false
+        address: address || null,
+        center_lat: typeof lat === 'number' ? lat : null,
+        center_lng: typeof lng === 'number' ? lng : null,
+        polygon: geojson || null
       };
 
-      // Inseriamo SOLO le colonne che ci risultano sicure (name + owner_id)
-const minimalPayload = {
-  name: payload.name,
-  owner_id: payload.owner_id
-};
-
-const { data, error } = await sb.from('rooms')
-  .insert(minimalPayload)
-  .select('id')
-  .single();
+      const { data, error } = await sb.from('rooms').insert(payload).select('id').single();
       if (error){
-        console.error('INSERT ERROR:', error, 'PAYLOAD:', payload);
+        console.error('INSERT ERROR:', error, payload);
         alert('ERRORE SUPABASE:\n' + JSON.stringify(error, null, 2));
         return;
       }
@@ -213,10 +202,10 @@ const { data, error } = await sb.from('rooms')
       const img = document.getElementById('qrImg'); img.src = qr; img.alt = 'QR stanza';
       document.getElementById('qrWrap').classList.remove('hidden');
 
-      alert('Stanza creata! Scannerizza il QR o apri il link per il check-in.');
-    } catch (e) {
-      console.error('UNHANDLED ERROR:', e);
-      alert('ERRORE GENERICO:\n' + (e?.message || e));
+      alert('OK! Stanza creata.');
+    }catch(e){
+      console.error(e);
+      alert('Errore inatteso:\n' + (e?.message || e));
     }
   };
 </script>
