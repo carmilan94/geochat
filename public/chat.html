@@ -1,198 +1,240 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GeoChat • Chat</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>IMIN • Chat</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root {
-      --g1:#0f0f10;
-      --g2:#1a1a1c;
-      --acc1:#ff8a00;
-      --acc2:#ffb233;
-    }
-    body {
-      background: linear-gradient(180deg,var(--g1),var(--g2));
-      color: #eaeaea;
-    }
-    .glass {
-      background: rgba(255,255,255,.06);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,.08);
-    }
-    .btn-main {
-      background: linear-gradient(90deg,var(--acc1),var(--acc2));
-      color: #111;
-      font-weight: 700;
-    }
-    #log { height:58vh; overflow:auto; }
+    :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233}
+    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea}
+    .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
+    .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:800}
+    a.user{color:#ffd18a;text-decoration:underline}
 
-    /* ----- Bubble slim style ----- */
-    .row { padding: .25rem .2rem; }
-    .meta {
-      font-size: .68rem;
-      opacity: .65;
-      margin: 0 .25rem .25rem;
-    }
-    .bubble {
-      display: inline-block;
-      padding: .45rem .65rem;
-      border-radius: 14px;
-      font-size: 14px;
-      line-height: 1.32;
-      max-width: 72%;
-      word-wrap: break-word;
-      box-shadow: 0 1px 2px rgba(0,0,0,.25);
-    }
-    .bubble-other {
-      background: #1b1b1d;
-      border: 1px solid rgba(255,255,255,.08);
-      text-align: left;
-    }
-    .bubble-me {
-      background: #ffc86a;
-      color: #111;
-      text-align: left;
-    }
-    @media (max-width:480px){
-      .bubble{ max-width:78%; }
-    }
+    /* Lista messaggi */
+    #messages{height:60vh;overflow-y:auto;scroll-behavior:smooth;padding:6px}
+
+    /* Bubble slim stile WhatsApp */
+    .row{padding:.22rem .18rem}
+    .meta{font-size:.68rem;opacity:.65;margin:0 .25rem .22rem}
+    .bubble{display:inline-block;padding:.45rem .65rem;border-radius:14px;font-size:14px;line-height:1.32;max-width:72%;word-wrap:break-word;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+    .bubble-other{background:#1b1b1d;border:1px solid rgba(255,255,255,.08)}
+    .bubble-me{background:#ffc86a;color:#111}
+    @media (max-width:480px){ .bubble{max-width:78%} }
   </style>
-  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=geometry&callback=initChat"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<header class="w-full py-4 px-5 flex items-center justify-between">
-  <div class="flex items-center gap-2">
-    <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-bold text-black">GC</div>
-    <div class="font-extrabold text-xl" id="roomTitle">GeoChat</div>
+<header class="w-full py-3 px-4">
+  <div class="max-w-4xl mx-auto flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-bold text-black">GC</div>
+      <div id="roomTitle" class="font-extrabold text-xl">GeoChat</div>
+    </div>
+    <nav class="flex items-center gap-3 text-sm">
+      <a href="index.html" class="chip px-3 py-1.5 rounded-lg">Home</a>
+      <a id="authLink" href="auth.html" class="chip px-3 py-1.5 rounded-lg">Entra</a>
+    </nav>
   </div>
-  <nav class="flex items-center gap-3 text-sm">
-    <a href="index.html" class="px-3 py-1.5 rounded-lg glass">Home</a>
-    <a id="authLink" href="auth.html" class="px-3 py-1.5 rounded-lg glass">Entra</a>
-  </nav>
 </header>
 
-<main class="max-w-3xl mx-auto px-4 pb-24">
-  <div id="geoWarn" class="glass rounded-xl p-3 mb-3 text-sm hidden"></div>
-  <div id="log" class="glass rounded-xl p-4"></div>
-  <form id="formMsg" class="mt-3 flex gap-2">
-    <input id="msg" class="flex-1 rounded-lg px-3 py-2 bg-neutral-800 border border-neutral-700" placeholder="Scrivi un messaggio… (Invio per inviare)" />
-    <button class="btn-main rounded-lg px-4">Invia</button>
-  </form>
+<main class="max-w-4xl mx-auto px-4 pb-24">
+  <div id="roomHeader" class="glass rounded-xl px-4 py-3 mb-3 cursor-pointer flex items-center justify-between">
+    <div>
+      <div id="roomName" class="font-extrabold text-lg underline decoration-white/30">Chat</div>
+      <div id="activeCount" class="text-xs opacity-80">Membri attivi — …</div>
+    </div>
+    <div class="chip rounded-lg px-3 py-1.5 text-xs">Vedi membri</div>
+  </div>
+
+  <div id="messages" class="glass rounded-xl"></div>
+
+  <div class="mt-3 flex gap-2">
+    <input id="msgInput" class="flex-1 chip rounded-lg px-3 py-2" placeholder="Scrivi un messaggio… (Invio per inviare)" />
+    <button id="sendBtn" class="btn-main rounded-lg px-4">Invia</button>
+  </div>
 </main>
 
+<!-- Modale presenza -->
+<div id="presenceModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50">
+  <div class="bg-[#151515] border border-[#252525] rounded-xl p-4 w-[92%] max-w-md">
+    <div class="flex items-center justify-between mb-2">
+      <div class="font-bold">Membri attivi</div>
+      <button id="closePresence" class="chip rounded-md px-2 py-1 text-sm">Chiudi</button>
+    </div>
+    <div id="presenceList" class="divide-y divide-white/10"></div>
+  </div>
+</div>
+
 <script>
-  const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
-  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const SUPABASE_URL  = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  const params = new URLSearchParams(location.search);
-  const roomId = params.get('room');
-  if (!roomId){ location.replace('index.html'); }
+const qs = new URLSearchParams(location.search);
+const roomId = qs.get('room');
 
-  let room=null, canSend=false, currentUser=null;
+const messagesEl   = document.getElementById('messages');
+const msgInput     = document.getElementById('msgInput');
+const sendBtn      = document.getElementById('sendBtn');
+const roomTitleEl  = document.getElementById('roomTitle');
+const roomNameEl   = document.getElementById('roomName');
+const activeCount  = document.getElementById('activeCount');
+const presenceModal= document.getElementById('presenceModal');
+const presenceList = document.getElementById('presenceList');
 
-  window.initChat = async function(){
-    const { data:{session} } = await sb.auth.getSession();
-    if (!session){
-      location.replace(`auth.html?next=${encodeURIComponent(location.pathname+location.search)}`);
-      return;
-    }
-    currentUser = session.user;
+let me = null;           // session.user
+let meName = 'Tu';       // visualizzazione per me
+let profileCache = new Map(); // user_id -> display_name
+let presenceChannel = null;
 
-    const l = document.getElementById('authLink');
-    l.textContent='Esci';
-    l.onclick=async(e)=>{
-      e.preventDefault();
-      await sb.auth.signOut();
-      location.href='index.html';
-    };
+// ---- INIT ----
+(async function init(){
+  if (!roomId){ alert('Stanza non trovata'); location.href='index.html'; return; }
 
-    const { data, error } = await sb.from('rooms').select('*').eq('id',roomId).single();
-    if (error || !data){ alert('Stanza non trovata'); location.replace('index.html'); return; }
-    room=data; document.getElementById('roomTitle').textContent = room.name||'Chat';
+  const { data:{ session } } = await sb.auth.getSession();
+  if (!session){ location.href='auth.html?next='+encodeURIComponent(location.pathname+location.search); return; }
+  me = session.user;
 
-    navigator.geolocation.getCurrentPosition(pos=>{
-      const me = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
-      const path = (room.polygon?.coordinates?.[0]||[]).map(([lng,lat])=>({lat,lng}));
-      const poly = new google.maps.Polygon({paths:path});
-      const inside = google.maps.geometry.poly.containsLocation(me, poly);
-      if (!inside){ location.replace(`join.html?room=${encodeURIComponent(roomId)}&reason=outside`); return; }
-      canSend=true; bootChat();
-    }, _=>{
-      document.getElementById('geoWarn').classList.remove('hidden');
-      document.getElementById('geoWarn').textContent='Posizione non disponibile: ritorno al check-in.';
-      setTimeout(()=>location.replace(`join.html?room=${encodeURIComponent(roomId)}&reason=nolocation`), 1200);
-    }, { enableHighAccuracy:true, maximumAge:0, timeout:10000 });
+  // Link Esci
+  const link = document.getElementById('authLink');
+  link.textContent = 'Esci';
+  link.onclick = async (e)=>{ e.preventDefault(); await sb.auth.signOut(); location.href='index.html'; };
+
+  // Room name
+  const { data: room } = await sb.from('rooms').select('name').eq('id', roomId).maybeSingle();
+  roomTitleEl.textContent = room?.name || 'GeoChat';
+  roomNameEl.textContent  = room?.name || 'Chat locale';
+
+  // Il mio display_name (solo per presence)
+  const { data: prof } = await sb.from('profiles').select('display_name').eq('id', me.id).maybeSingle();
+  if (prof?.display_name) meName = 'Tu'; // label “Tu” per i miei messaggi
+
+  // Carica messaggi e subscribe
+  await loadMessages();
+  subscribeRealtime();
+
+  // Presence realtime
+  setupPresence();
+
+  // UI
+  sendBtn.onclick = sendMessage;
+  msgInput.addEventListener('keydown', e=>{
+    if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+  });
+
+  document.getElementById('roomHeader').onclick = () => presenceModal.classList.remove('hidden');
+  document.getElementById('closePresence').onclick = () => presenceModal.classList.add('hidden');
+})();
+
+// ---- LOAD ----
+async function loadMessages(){
+  const { data, error } = await sb.from('messages')
+    .select('id, body, created_at, user_id')
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: true })
+    .limit(200);
+  messagesEl.innerHTML='';
+  if (error) {
+    messagesEl.innerHTML = '<div class="p-3 text-sm text-red-300">Errore nel caricamento.</div>';
+    return;
+  }
+  for (const m of (data||[])) await renderMessage(m);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+// ---- REALTIME ----
+function subscribeRealtime(){
+  sb.channel('public:messages:'+roomId)
+    .on('postgres_changes',
+      { event:'INSERT', schema:'public', table:'messages', filter:'room_id=eq.'+roomId },
+      async payload => { await renderMessage(payload.new); messagesEl.scrollTop = messagesEl.scrollHeight; }
+    ).subscribe();
+}
+
+// ---- DISPLAY NAME by user_id (con cache) ----
+async function getDisplayName(uid){
+  if (!uid) return 'Anonimo';
+  if (uid === me.id) return meName;       // i miei messaggi → “Tu”
+  const cached = profileCache.get(uid);
+  if (cached) return cached;
+  const { data } = await sb.from('profiles').select('display_name').eq('id', uid).maybeSingle();
+  const dn = data?.display_name || 'Anonimo';
+  profileCache.set(uid, dn);
+  return dn;
+}
+
+// ---- RENDER MESSAGE ----
+async function renderMessage(m){
+  const uid  = m.user_id || null;
+  const mine = uid === me.id;
+  const who  = await getDisplayName(uid);
+  const time = m.created_at ? new Date(m.created_at).toLocaleTimeString() : '';
+
+  const row = document.createElement('div');
+  row.className = 'row';
+
+  // meta riga (nome + ora)
+  const meta = document.createElement('div');
+  meta.className = 'meta ' + (mine ? 'text-right' : 'text-left');
+  meta.innerHTML = mine
+    ? `<span class="font-medium text-amber-400">Tu</span> <span>${time}</span>`
+    : `<a class="user font-medium" href="profile.html?uid=${encodeURIComponent(uid||'')}">${escapeHtml(who)}</a> <span>${time}</span>`;
+
+  // bubble
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble ' + (mine ? 'bubble-me ml-auto' : 'bubble-other mr-auto');
+  bubble.innerHTML = linkify(escapeHtml(m.body||''));
+
+  messagesEl.appendChild(meta);
+  messagesEl.appendChild(bubble);
+}
+
+// ---- SEND ----
+async function sendMessage(){
+  const txt = (msgInput.value||'').trim();
+  if (!txt) return;
+  msgInput.value='';
+  const { error } = await sb.from('messages').insert({ room_id: roomId, user_id: me.id, body: txt });
+  if (error){ console.error(error); alert('Errore invio messaggio: '+error.message); }
+}
+
+// ---- PRESENCE ----
+function setupPresence(){
+  presenceChannel = sb.channel('presence:room:'+roomId, { config: { presence: { key: me.id } } });
+
+  const refresh = ()=>{
+    const state = presenceChannel.presenceState(); // { uid: [ {display_name}, ... ] }
+    const ids = Object.keys(state||{});
+    activeCount.textContent = `${ids.length} membri attivi`;
+    presenceList.innerHTML = ids.length
+      ? ids.map(uid=>{
+          const dn = (state[uid]?.[0]?.display_name) || 'Anonimo';
+          return `<div class="py-2 text-sm"><a class="user" href="profile.html?uid=${encodeURIComponent(uid)}">${escapeHtml(dn)}</a></div>`;
+        }).join('')
+      : '<div class="py-4 text-sm opacity-70">Nessuno online al momento.</div>';
   };
 
-  async function bootChat(){
-    await loadMessages();
-    subscribeRealtime();
+  presenceChannel.on('presence', { event:'sync' }, refresh);
+  presenceChannel.on('presence', { event:'join' }, refresh);
+  presenceChannel.on('presence', { event:'leave' }, refresh);
 
-    document.getElementById('formMsg').addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      if (!canSend){ alert('Fuori perimetro: invio bloccato.'); return; }
-      const val = document.getElementById('msg').value.trim();
-      if (!val) return;
-      document.getElementById('msg').value='';
-      const { error } = await sb.from('messages').insert({
-        room_id:roomId,
-        body:val,
-        user_id:currentUser.id
-      });
-      if (error){ console.error(error); alert('Invio non riuscito'); }
-    });
-  }
+  presenceChannel.subscribe(async status=>{
+    if (status==='SUBSCRIBED'){
+      const { data } = await sb.from('profiles').select('display_name').eq('id', me.id).maybeSingle();
+      await presenceChannel.track({ display_name: data?.display_name || 'Anonimo', room_id: roomId });
+    }
+  });
+}
 
-  async function loadMessages(){
-    const { data } = await sb.from('messages')
-      .select('id,body,created_at,user_id,profiles(display_name)')
-      .eq('room_id',roomId)
-      .order('created_at',{ascending:true}).limit(200);
-    const log=document.getElementById('log'); log.innerHTML='';
-    (data||[]).forEach(addMsg);
-    log.scrollTop=log.scrollHeight;
-  }
+// ---- UTILS ----
+function escapeHtml(s){return (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function linkify(t){return t.replace(/\b(https?:\/\/[^\s<]+)\b/g,'<a class="user" href="$1" target="_blank" rel="noopener">$1</a>');}
 
-  function subscribeRealtime(){
-    sb.channel('public:messages')
-      .on('postgres_changes',{
-        event:'INSERT',
-        schema:'public',
-        table:'messages',
-        filter:`room_id=eq.${roomId}`
-      },payload=>{
-        addMsg(payload.new);
-        const log=document.getElementById('log'); log.scrollTop=log.scrollHeight;
-      }).subscribe();
-  }
-
-  function addMsg(m){
-    const log=document.getElementById('log');
-    const row=document.createElement('div');
-    row.className='row flex flex-col';
-
-    const mine = m.user_id===currentUser.id;
-    const author = mine ? 'Tu' : (m.profiles?.display_name||'Utente');
-    const time = new Date(m.created_at).toLocaleTimeString();
-
-    // autore e ora
-    const meta=document.createElement('div');
-    meta.className='meta flex gap-2 '+(mine?'justify-end text-right':'justify-start text-left');
-    meta.innerHTML = `<span class="font-medium ${mine?'text-amber-500':'text-sky-400'}">${author}</span> <span>${time}</span>`;
-    row.appendChild(meta);
-
-    // bubble
-    const b=document.createElement('div');
-    b.className='bubble '+(mine?'bubble-me self-end':'bubble-other self-start');
-    b.textContent=m.body;
-    row.appendChild(b);
-
-    log.appendChild(row);
-  }
+// cleanup presence
+window.addEventListener('beforeunload',()=>{ try{ presenceChannel?.untrack(); }catch(_){} });
 </script>
 </body>
 </html>
