@@ -3,302 +3,177 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GeoChat • Home</title>
+  <title>IMIN • Chat di prossimità per locali ed eventi</title>
+  <meta name="description" content="IMIN crea chat geolocalizzate: attivi una stanza legata a un perimetro GPS e ci entra solo chi è in zona. Perfetta per bar, lidi, locali e movida." />
+  <meta name="theme-color" content="#0f0f10" />
+  <link rel="icon" href="/favicon.ico" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233}
     body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea}
     .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
+    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:800}
     .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
-    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
-    .disabled{opacity:.5;cursor:not-allowed}
+    .hero-grad{background:
+      radial-gradient(900px 480px at 10% -10%, rgba(255,178,51,.18), transparent 40%),
+      radial-gradient(900px 480px at 90% -10%, rgba(255,138,0,.16), transparent 40%)}
+    .container{max-width:1100px}
+    .kicker{letter-spacing:.08em}
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body>
-<header class="w-full py-4 px-5 flex items-center justify-between">
-  <div class="flex items-center gap-2">
-    <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-bold text-black">GC</div>
-    <div class="font-extrabold text-xl">GeoChat</div>
-  </div>
-  <nav class="flex items-center gap-3 text-sm">
-    <a href="create.html" class="chip px-3 py-1.5 rounded-lg">Crea la tua chat</a>
-    <a id="authLink" href="auth.html" class="chip px-3 py-1.5 rounded-lg">Entra</a>
-    <a class="btn" href="profile.html">Profilo</a>
-  </nav>
-</header>
-
-<main class="max-w-4xl mx-auto px-4 pb-24">
-  <div class="glass rounded-2xl p-5 mb-4">
-    <h1 class="text-2xl font-extrabold mb-2">Chat vicino a te</h1>
-    <p class="opacity-85">Vedi le chat disponibili, la distanza (se concedi la posizione) e apri le indicazioni.</p>
-
-    <!-- toolbar posizione + ordinamento -->
-    <div class="mt-3 flex flex-wrap items-center gap-3">
-      <button id="btnLocate" class="chip px-4 py-2 rounded-lg">📍 Usa la mia posizione</button>
-      <span id="locState" class="opacity-70 text-sm">Posizione non disponibile</span>
-
-      <!-- ⬇️ QUI il bottone di ordinamento -->
-      <button id="btnSort" class="chip px-3 py-2 rounded-lg disabled" title="Richiede la posizione">
-        Ordina per distanza (vicino→lontano)
-      </button>
-      <span id="sortState" class="opacity-70 text-sm"></span>
+<body class="hero-grad">
+  <!-- NAVBAR -->
+  <header class="w-full">
+    <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-extrabold text-black">IM</div>
+        <div class="font-extrabold text-xl">IMIN</div>
+      </div>
+      <nav class="flex items-center gap-2 text-sm">
+        <a href="#come-funziona" class="chip px-3 py-1.5 rounded-lg">Come funziona</a>
+        <a href="#per-chi" class="chip px-3 py-1.5 rounded-lg">Per chi</a>
+        <a href="#faq" class="chip px-3 py-1.5 rounded-lg">FAQ</a>
+        <a href="nearby.html" class="chip px-3 py-1.5 rounded-lg">Vedi le chat</a>
+        <a href="create.html" class="btn-main px-3 py-1.5 rounded-lg">Crea una chat</a>
+      </nav>
     </div>
+  </header>
 
-    <!-- barra ricerca città -->
-    <div class="mt-3 flex flex-wrap items-center gap-3">
-      <input id="cityInput"
-             class="chip px-3 py-2 rounded-lg bg-transparent outline-none"
-             placeholder="Cerca città… (es. Napoli o NA)" />
-      <button id="btnFilter" class="chip px-3 py-2 rounded-lg">Filtra</button>
-      <button id="btnClear" class="chip px-3 py-2 rounded-lg">Rimuovi filtro</button>
-      <span id="filterState" class="opacity-70 text-sm"></span>
+  <!-- HERO -->
+  <section class="container mx-auto px-4 py-16 md:py-24">
+    <p class="kicker uppercase text-amber-300 text-xs mb-3">Chat di prossimità</p>
+    <h1 class="text-3xl md:text-5xl font-extrabold leading-tight max-w-3xl">
+      Crea una chat che si apre <span class="text-amber-300">solo a chi è lì</span>.
+    </h1>
+    <p class="opacity-85 text-lg md:text-xl max-w-2xl mt-4">
+      Con <b>IMIN</b> attivi una stanza legata a un perimetro GPS (il tuo bar, il lido, la piazza).
+      Entra solo chi si trova in quell’area. Niente gruppi caotici: una chat utile, locale e istantanea.
+    </p>
+    <div class="flex flex-wrap gap-3 mt-6">
+      <a href="create.html" class="btn-main rounded-xl px-5 py-3 text-base">Crea ora la tua chat</a>
+      <a href="nearby.html" class="chip rounded-xl px-5 py-3 text-base">Vedi le chat vicino a te</a>
     </div>
-  </div>
+    <div class="grid md:grid-cols-3 gap-4 mt-10">
+      <div class="glass p-4 rounded-xl">
+        <div class="font-semibold">Arrivi e sei dentro</div>
+        <div class="opacity-80 text-sm mt-1">Il QR porta alla pagina di ingresso; la posizione ti fa accedere.</div>
+      </div>
+      <div class="glass p-4 rounded-xl">
+        <div class="font-semibold">Zero spam</div>
+        <div class="opacity-80 text-sm mt-1">La chat vale per chi è presente. Quando vai via, non ti segue a casa.</div>
+      </div>
+      <div class="glass p-4 rounded-xl">
+        <div class="font-semibold">Attiva in 30 secondi</div>
+        <div class="opacity-80 text-sm mt-1">Disegni il perimetro sulla mappa, dai un nome, stampi il QR.</div>
+      </div>
+    </div>
+  </section>
 
-  <div id="list" class="grid gap-4"></div>
-</main>
+  <!-- COME FUNZIONA -->
+  <section id="come-funziona" class="container mx-auto px-4 py-14">
+    <div class="grid md:grid-cols-2 gap-8 items-center">
+      <div>
+        <h2 class="text-2xl md:text-3xl font-extrabold">Come funziona</h2>
+        <ol class="list-decimal ml-5 mt-4 space-y-3 opacity-90">
+          <li><b>Crea la chat</b>: vai su <span class="underline">Crea chat</span>, cerca il tuo locale sulla mappa e <b>disegna il perimetro</b>.</li>
+          <li><b>Dai un nome</b> e una descrizione (facoltativa).</li>
+          <li><b>Genera il QR</b>: IMIN crea un link <code>/join.html?room=…</code>.</li>
+          <li><b>Affiggi il QR</b> all’ingresso o al bancone.</li>
+          <li><b>Check-in</b>: chi scansiona entra nella pagina di verifica; se <b>è dentro l’area</b>, accede alla chat.</li>
+        </ol>
+        <div class="mt-6 flex gap-3">
+          <a href="create.html" class="btn-main rounded-xl px-5 py-3">Crea una chat</a>
+          <a href="nearby.html" class="chip rounded-xl px-5 py-3">Prova la lista chat</a>
+        </div>
+      </div>
+      <div class="glass rounded-2xl p-6">
+        <div class="text-sm opacity-80">Esempio di flusso</div>
+        <div class="mt-3 space-y-3 text-sm">
+          <div class="chip p-3 rounded-lg">1) Disegni il perimetro del locale</div>
+          <div class="chip p-3 rounded-lg">2) Stampi il QR e lo esponi</div>
+          <div class="chip p-3 rounded-lg">3) Clienti scansionano, fanno check-in e chattano</div>
+          <div class="chip p-3 rounded-lg">4) Niente spam fuori luogo: tutto resta “qui e ora”</div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-<script>
-  const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
-  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  <!-- PER CHI -->
+  <section id="per-chi" class="container mx-auto px-4 py-14">
+    <h2 class="text-2xl md:text-3xl font-extrabold">Perfetto per</h2>
+    <div class="grid md:grid-cols-3 gap-4 mt-5">
+      <div class="glass p-5 rounded-2xl">
+        <div class="text-lg font-semibold">Bar & Caffè</div>
+        <p class="opacity-85 text-sm mt-1">Annunci flash (happy hour), richieste al bancone, tavoli condivisi, oggetti smarriti.</p>
+      </div>
+      <div class="glass p-5 rounded-2xl">
+        <div class="text-lg font-semibold">Lidi & Beach club</div>
+        <p class="opacity-85 text-sm mt-1">Info sdraio, eventi in spiaggia, meteo istantaneo per chi è già sul posto.</p>
+      </div>
+      <div class="glass p-5 rounded-2xl">
+        <div class="text-lg font-semibold">Movida & Eventi</div>
+        <p class="opacity-85 text-sm mt-1">Pub crawl, live set, gestione code e comunicazioni “qui e ora”.</p>
+      </div>
+    </div>
+  </section>
 
-  // auth link
-  (async ()=>{
-    const { data:{session} } = await sb.auth.getSession();
-    const link = document.getElementById('authLink');
-    if (session){
-      link.textContent = 'Esci';
-      link.onclick = async (e)=>{ e.preventDefault(); await sb.auth.signOut(); location.reload(); }
-    } else {
-      link.textContent = 'Entra';
-      link.href = 'auth.html';
-    }
-  })();
+  <!-- BENEFIT -->
+  <section class="container mx-auto px-4 py-14">
+    <h2 class="text-2xl md:text-3xl font-extrabold">Perché IMIN</h2>
+    <div class="grid md:grid-cols-3 gap-4 mt-5">
+      <div class="glass p-5 rounded-2xl">
+        <div class="text-lg font-semibold">Ultra semplice</div>
+        <p class="opacity-85 text-sm mt-1">Niente app da installare: QR, posizione e sei dentro.</p>
+      </div>
+      <div class="glass p-5 rounded-2xl">
+        <div class="text-lg font-semibold">Privacy by design</div>
+        <p class="opacity-85 text-sm mt-1">Solo presenza fisica → accesso. Nessuna invasione fuori orario.</p>
+      </div>
+      <div class="glass p-5 rounded-2xl">
+        <div class="text-lg font-semibold">Gratis per iniziare</div>
+        <p class="opacity-85 text-sm mt-1">Crea la tua prima chat e prova oggi stesso nel tuo locale.</p>
+      </div>
+    </div>
+  </section>
 
-  async function requireAuthOrRedirect(nextUrl){
-    const { data:{session} } = await sb.auth.getSession();
-    if (!session){
-      location.href = `auth.html?next=${encodeURIComponent(nextUrl)}`;
-      return false;
-    }
-    return true;
-  }
+  <!-- CTA -->
+  <section class="container mx-auto px-4 py-14">
+    <div class="glass rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div>
+        <div class="text-lg font-extrabold">Pronto a provarla nel tuo posto?</div>
+        <div class="opacity-80 text-sm mt-1">Crea una chat in 30 secondi. È gratis per iniziare.</div>
+      </div>
+      <div class="flex gap-3">
+        <a href="create.html" class="btn-main rounded-xl px-5 py-3">Crea una chat</a>
+        <a href="nearby.html" class="chip rounded-xl px-5 py-3">Vedi le chat</a>
+      </div>
+    </div>
+  </section>
 
-  let myPos=null;
-  let cityFilter='';
-  let sortByDistance=false; // stato ordinamento
+  <!-- FAQ -->
+  <section id="faq" class="container mx-auto px-4 py-16">
+    <h2 class="text-2xl md:text-3xl font-extrabold">Domande frequenti</h2>
+    <div class="mt-5 space-y-3">
+      <div class="glass rounded-xl p-4">
+        <div class="font-semibold">Serve installare un’app?</div>
+        <div class="opacity-85 text-sm mt-1">No, tutto via web. Scansioni il QR, autorizzi la posizione, entri.</div>
+      </div>
+      <div class="glass rounded-xl p-4">
+        <div class="font-semibold">Chi può entrare nella chat?</div>
+        <div class="opacity-85 text-sm mt-1">Solo chi si trova dentro il perimetro che hai disegnato sulla mappa.</div>
+      </div>
+      <div class="glass rounded-xl p-4">
+        <div class="font-semibold">Posso creare più chat?</div>
+        <div class="opacity-85 text-sm mt-1">Sì, una per ogni locale/area. Trovi tutto nella sezione Admin.</div>
+      </div>
+    </div>
+  </section>
 
-  // Mappa COMPLETA sigle provincia ⇄ nome
-  const PROV = {
-    "ag":"agrigento","al":"alessandria","an":"ancona","ao":"aosta","ap":"ascoli piceno","aq":"l'aquila","ar":"arezzo","at":"asti","av":"avellino",
-    "ba":"bari","bt":"barletta-andria-trani","bl":"belluno","bn":"benevento","bg":"bergamo","bi":"biella","bo":"bologna","bz":"bolzano","bs":"brescia","br":"brindisi",
-    "ca":"cagliari","cl":"caltanissetta","cb":"campobasso","ce":"caserta","ct":"catania","cz":"catanzaro","ch":"chieti","co":"como","cs":"cosenza","cr":"cremona","kr":"crotone","cn":"cuneo",
-    "en":"enna","fm":"fermo","fe":"ferrara","fi":"firenze","fg":"foggia","fc":"forli-cesena","fr":"frosinone",
-    "ge":"genova","go":"gorizia","gr":"grosseto",
-    "im":"imperia","is":"isernia",
-    "sp":"la spezia","lt":"latina","le":"lecce","lc":"lecco","li":"livorno","lo":"lodi","lu":"lucca",
-    "mc":"macerata","mn":"mantova","ms":"massa-carrara","mt":"matera","me":"messina","mi":"milano","mo":"modena","mb":"monza e della brianza",
-    "na":"napoli","no":"novara","nu":"nuoro","or":"oristano",
-    "pd":"padova","pa":"palermo","pr":"parma","pv":"pavia","pg":"perugia","pu":"pesaro e urbino","pe":"pescara","pc":"piacenza","pi":"pisa","pt":"pistoia","pn":"pordenone","pz":"potenza","po":"prato",
-    "rg":"ragusa","ra":"ravenna","rc":"reggio calabria","re":"reggio emilia","ri":"rieti","rn":"rimini","rm":"roma","ro":"rovigo",
-    "sa":"salerno","ss":"sassari","sv":"savona","si":"siena","sr":"siracusa","so":"sondrio","su":"sud sardegna",
-    "ta":"taranto","te":"teramo","tr":"terni","to":"torino","tp":"trapani","tn":"trento","tv":"treviso","ts":"trieste",
-    "ud":"udine",
-    "va":"varese","ve":"venezia","vb":"verbano-cusio-ossola","vc":"vercelli","vr":"verona","vv":"vibo valentia","vi":"vicenza","vt":"viterbo"
-  };
-
-  const normalize = s => (s||'').toString().toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[()]/g,' ');
-
-  function buildAliases(term){
-    const t = normalize(term).trim();
-    const aliases = new Set([t]);
-    for (const [code,name] of Object.entries(PROV)){
-      if (t === name) aliases.add(code);
-      if (t === code) aliases.add(name);
-    }
-    return [...aliases];
-  }
-
-  function matchesCityOrProvince(room, term){
-    const hay = normalize((room.address||'') + ' ' + (room.city||''));
-    const aliases = buildAliases(term);
-    return aliases.some(a => hay.includes(a));
-  }
-
-  // avvio
-  loadRooms();
-
-  // carica stanze (con filtro città e ordinamento opzionale per distanza)
-  async function loadRooms(){
-    const container = document.getElementById('list');
-    container.innerHTML = '';
-
-    try{
-      let query = sb.from('rooms').select('*').order('created_at',{ascending:false}).limit(100);
-
-      // tenta filtro server-side
-      if (cityFilter){
-        query = query.or(`city.ilike.%${cityFilter}%,address.ilike.%${cityFilter}%`);
-      }
-      let { data, error } = await query;
-
-      // fallback senza filtro se errore
-      if (error){
-        const r = await sb.from('rooms').select('*').order('created_at',{ascending:false}).limit(100);
-        if (r.error) throw r.error;
-        data = r.data||[];
-      }
-
-      // filtro client-side intelligente (nomi↔sigle)
-      if (cityFilter){
-        data = (data||[]).filter(r => matchesCityOrProvince(r, cityFilter));
-      }
-
-      // distanza (se posizione presente)
-      data = (data||[]).map(r=>{
-        const hasCoords = r.center_lat!=null && r.center_lng!=null;
-        let distKm = null;
-        if (myPos && hasCoords){
-          distKm = haversine(myPos.lat, myPos.lng, Number(r.center_lat), Number(r.center_lng));
-        }
-        return {...r, _distKm: distKm};
-      });
-
-      // ordinamento per distanza
-      if (sortByDistance && myPos){
-        data.sort((a,b)=>{
-          if (a._distKm==null && b._distKm==null) return 0;
-          if (a._distKm==null) return 1;
-          if (b._distKm==null) return -1;
-          return a._distKm - b._distKm;
-        });
-      }
-
-      // render
-      data.forEach(r=>{
-        const distTxt = (r._distKm!=null) ? r._distKm.toFixed(1)+' km' : 'distanza sconosciuta';
-        const mapsQuery = r.address || ((r.center_lat!=null && r.center_lng!=null) ? `${r.center_lat},${r.center_lng}` : '');
-        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
-        const card = document.createElement('div');
-        card.className='glass rounded-2xl p-4 flex flex-col gap-3';
-        card.innerHTML = `
-          <div class="flex items-center justify-between">
-            <div class="font-bold text-lg">${escapeHtml(r.name||'Chat')}</div>
-            <span class="chip px-3 py-1 rounded-lg text-sm">Attivi —</span>
-          </div>
-          <div class="opacity-80 text-sm">${escapeHtml(r.address||'')}</div>
-          <div class="opacity-70 text-sm">Distanza: ${distTxt}</div>
-          <div class="flex items-center gap-2">
-            <button class="btn-main px-3 py-2 rounded-lg" data-action="maps" data-url="${mapsUrl}">Apri in Google Maps</button>
-            <button class="chip px-3 py-2 rounded-lg" data-action="join" data-room="${r.id}">Apri chat</button>
-          </div>
-        `;
-        container.appendChild(card);
-      });
-
-      document.getElementById('filterState').textContent =
-        cityFilter ? `Filtro: "${cityFilter}"` : '';
-
-      updateSortButton();
-    } catch(e){
-      console.error(e);
-      container.innerHTML = `<div class="glass rounded-2xl p-4">Errore nel caricamento. Riprova più tardi.</div>`;
-    }
-  }
-
-  // posizione
-  document.getElementById('btnLocate').onclick = ()=>{
-    navigator.geolocation.getCurrentPosition(pos=>{
-      myPos = { lat:pos.coords.latitude, lng:pos.coords.longitude };
-      document.getElementById('locState').textContent = 'Posizione acquisita ✅';
-      updateSortButton(true);
-      loadRooms();
-    }, _=>{
-      document.getElementById('locState').textContent = 'Posizione non disponibile ❌';
-      updateSortButton(false);
-    }, { enableHighAccuracy:true, maximumAge:0, timeout:10000 });
-  };
-
-  // toggle ordinamento per distanza
-  document.getElementById('btnSort').onclick = ()=>{
-    if (!myPos){
-      navigator.geolocation.getCurrentPosition(pos=>{
-        myPos = { lat:pos.coords.latitude, lng:pos.coords.longitude };
-        document.getElementById('locState').textContent = 'Posizione acquisita ✅';
-        sortByDistance = true;
-        updateSortButton(true);
-        loadRooms();
-      }, _=>{
-        document.getElementById('locState').textContent = 'Posizione non disponibile ❌';
-        updateSortButton(false);
-      }, { enableHighAccuracy:true, maximumAge:0, timeout:10000 });
-      return;
-    }
-    sortByDistance = !sortByDistance;
-    updateSortButton(true);
-    loadRooms();
-  };
-
-  function updateSortButton(hasPos = !!myPos){
-    const btn = document.getElementById('btnSort');
-    const state = document.getElementById('sortState');
-    if (!hasPos){
-      btn.classList.add('disabled');
-      state.textContent = 'Ordina per distanza: richiede posizione';
-    } else {
-      btn.classList.remove('disabled');
-      state.textContent = sortByDistance ? 'Ordine: vicino → lontano' : 'Ordine: predefinito (più recenti)';
-    }
-  }
-
-  // barra ricerca città
-  document.getElementById('btnFilter').onclick = ()=>{
-    cityFilter = document.getElementById('cityInput').value.trim();
-    loadRooms();
-  };
-  document.getElementById('btnClear').onclick = ()=>{
-    cityFilter = '';
-    document.getElementById('cityInput').value='';
-    loadRooms();
-  };
-  document.getElementById('cityInput').addEventListener('keydown', (e)=>{
-    if (e.key === 'Enter'){
-      e.preventDefault();
-      cityFilter = e.target.value.trim();
-      loadRooms();
-    }
-  });
-
-  // click delegato sui pulsanti card
-  document.addEventListener('click', async (e)=>{
-    const mapsBtn = e.target.closest('[data-action="maps"]');
-    if (mapsBtn){
-      const url = mapsBtn.getAttribute('data-url');
-      if (!await requireAuthOrRedirect(url)) return;
-      location.href = url;
-      return;
-    }
-    const joinBtn = e.target.closest('[data-action="join"]');
-    if (joinBtn){
-      const room = joinBtn.getAttribute('data-room');
-      const next = `join.html?room=${encodeURIComponent(room)}`;
-      if (!await requireAuthOrRedirect(next)) return;
-      location.href = next;
-    }
-  });
-
-  // helpers
-  function escapeHtml(s){return (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
-  function haversine(lat1,lon1,lat2,lon2){
-    const R=6371, toRad=d=>d*Math.PI/180;
-    const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
-    const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-    return 2*R*Math.asin(Math.sqrt(a));
-  }
-</script>
+  <footer class="container mx-auto px-4 py-10 opacity-70 text-xs">
+    © <script>document.write(new Date().getFullYear())</script> IMIN • GeoChat
+    <span class="mx-2">•</span> <a class="underline" href="nearby.html">Vedi le chat</a>
+    <span class="mx-2">•</span> <a class="underline" href="create.html">Crea chat</a>
+    <span class="mx-2">•</span> <a class="underline" href="admin.html">Admin</a>
+  </footer>
 </body>
 </html>
