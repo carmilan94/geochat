@@ -1,200 +1,152 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>GeoChat • Admin</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="icon" href="data:,">
-</head>
-<body class="bg-slate-50 text-slate-900">
-  <div class="max-w-6xl mx-auto p-4">
-    <header class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold">GeoChat • Admin</h1>
-      <div id="authBox" class="flex items-center gap-2"></div>
-    </header>
-
-    <div id="notAdmin" class="hidden p-4 bg-rose-100 text-rose-800 rounded-lg">
-      Non sei autorizzato. Accedi con un account <b>admin</b>.
-    </div>
-
-    <section id="adminPanel" class="hidden">
-      <div class="mb-4 flex items-center justify-between">
-        <h2 class="text-lg font-semibold">Stanze</h2>
-        <div class="flex items-center gap-2">
-          <input id="searchInput" class="px-3 py-2 border rounded-lg" placeholder="Cerca per nome o indirizzo…" />
-          <button id="refreshBtn" class="px-3 py-2 rounded-lg border">Aggiorna</button>
-        </div>
-      </div>
-      <div id="roomsWrap" class="bg-white rounded-xl shadow divide-y"></div>
-    </section>
-
-    <pre id="errBox" class="hidden mt-6 p-3 bg-yellow-50 text-yellow-800 rounded-lg text-xs whitespace-pre-wrap"></pre>
-  </div>
-
-  <!-- UMD build (no module import) -->
+  <style>
+    :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233;}
+    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea;}
+    .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
+    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
+    .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+    a.link{color:#ffd18a;text-decoration:underline}
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    // Mostra eventuali errori a schermo
-    function showErr(e){
-      const box = document.getElementById('errBox');
-      box.textContent = String(e && e.message ? e.message : e);
-      box.classList.remove('hidden');
-      console.error(e);
+</head>
+<body>
+<header class="w-full py-4 px-5 flex items-center justify-between">
+  <div class="flex items-center gap-2">
+    <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-bold text-black">GC</div>
+    <div class="font-extrabold text-xl">GeoChat • Admin</div>
+  </div>
+  <nav class="flex items-center gap-3 text-sm">
+    <a href="index.html" class="chip px-3 py-1.5 rounded-lg">Home</a>
+    <a href="create.html" class="chip px-3 py-1.5 rounded-lg">Crea chat</a>
+    <button id="logoutBtn" class="chip px-3 py-1.5 rounded-lg hidden">Esci</button>
+  </nav>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 pb-24">
+  <div id="notice" class="glass p-4 rounded-xl mb-4 hidden"></div>
+
+  <section id="listWrap" class="glass rounded-2xl p-5 hidden">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-lg font-bold">Le tue stanze</h2>
+      <a class="link text-sm" href="create.html">+ Crea nuova stanza</a>
+    </div>
+    <div id="roomsList" class="divide-y divide-white/10"></div>
+  </section>
+</main>
+
+<script>
+  // --- SUPABASE CONFIG
+  const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  const notice = document.getElementById('notice');
+  const listWrap = document.getElementById('listWrap');
+  const roomsList = document.getElementById('roomsList');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  // --- UI helpers
+  function showNotice(html){
+    notice.innerHTML = html;
+    notice.classList.remove('hidden');
+  }
+  function hideNotice(){
+    notice.classList.add('hidden');
+    notice.innerHTML = '';
+  }
+
+  // --- secure route: require auth
+  (async () => {
+    const { data: { session } } = await sb.auth.getSession();
+
+    if (!session) {
+      // nessuna sessione sul DOMINIO CORRENTE
+      showNotice('<div class="text-amber-300">Auth session missing! Devi accedere.</div><div class="mt-2"><a class="link" href="auth.html?next=admin.html">Vai al login</a></div>');
+      return;
     }
 
-    // === CONFIG SUPABASE ===
-    const SUPABASE_URL = "https://lkdtvaiwlnkxwvlimvqs.supabase.co";
-    const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8";
+    // mostra logout
+    logoutBtn.classList.remove('hidden');
+    logoutBtn.onclick = async () => {
+      await sb.auth.signOut();
+      location.href = 'auth.html?next=admin.html';
+    };
 
-    let supabase;
-    try {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-    } catch (e) { showErr(e); }
+    hideNotice();
+    listWrap.classList.remove('hidden');
+    loadRooms(session.user.id);
+  })();
 
-    const authBox    = document.getElementById('authBox');
-    const adminPanel = document.getElementById('adminPanel');
-    const notAdmin   = document.getElementById('notAdmin');
-    const roomsWrap  = document.getElementById('roomsWrap');
-    const refreshBtn = document.getElementById('refreshBtn');
-    const searchInput= document.getElementById('searchInput');
+  async function loadRooms(ownerId){
+    roomsList.innerHTML = '<div class="py-6 text-sm opacity-80">Caricamento…</div>';
 
-    async function renderAuth(){
-      try{
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        authBox.innerHTML = "";
-        if (!user) {
-          const input = document.createElement('input');
-          input.placeholder = 'Email';
-          input.className = 'px-3 py-2 border rounded-lg';
-          const btn = document.createElement('button');
-          btn.textContent = 'Invia magic link';
-          btn.className = 'px-3 py-2 rounded-lg bg-slate-900 text-white';
-          btn.onclick = async () => {
-            try{
-              const email = input.value.trim();
-              if (!email) return;
-              const { error: e } = await supabase.auth.signInWithOtp({ email });
-              if (e) throw e;
-              alert('Controlla la tua email ✔️');
-            } catch(e){ showErr(e); }
-          };
-          authBox.append(input, btn);
-          notAdmin.classList.remove('hidden');
-          adminPanel.classList.add('hidden');
-        } else {
-          const span = document.createElement('span');
-          span.textContent = user.email;
-          const out = document.createElement('button');
-          out.textContent = 'Esci';
-          out.className = 'px-3 py-2 rounded-lg border';
-          out.onclick = async ()=> { await supabase.auth.signOut(); location.reload(); };
-          authBox.append(span, out);
+    const { data, error } = await sb
+      .from('rooms')
+      .select('id,name,address,description,created_at')
+      .eq('owner_id', ownerId)
+      .order('created_at', { ascending: false });
 
-          const { data: prof, error: e2 } = await supabase
-            .from('profiles').select('role').eq('id', user.id).single();
-          if (e2) throw e2;
-
-          if (prof?.role === 'admin') {
-            notAdmin.classList.add('hidden');
-            adminPanel.classList.remove('hidden');
-            loadRooms();
-          } else {
-            notAdmin.classList.remove('hidden');
-            adminPanel.classList.add('hidden');
-          }
-        }
-      } catch(e){ showErr(e); }
+    if (error){
+      roomsList.innerHTML = `<div class="py-6 text-sm text-red-300">Errore: ${error.message}</div>`;
+      return;
     }
 
-    async function loadRooms(){
-      roomsWrap.innerHTML = '<div class="p-4 text-slate-500">Carico…</div>';
-      try{
-        let query = supabase
-          .from('rooms')
-          .select('id,name,address,created_at')
-          .order('created_at', { ascending: false })
-          .limit(200);
+    if (!data || !data.length){
+      roomsList.innerHTML = '<div class="py-6 text-sm opacity-80">Nessuna stanza ancora creata.</div>';
+      return;
+    }
 
-        const term = (searchInput.value||'').trim().toLowerCase();
-        let rooms;
-        if (term) {
-          const { data } = await query;
-          rooms = (data||[]).filter(x =>
-            (x.name||'').toLowerCase().includes(term) ||
-            (x.address||'').toLowerCase().includes(term)
-          );
-        } else {
-          const { data, error } = await query;
-          if (error) throw error;
-          rooms = data||[];
-        }
-
-        const cutoff = new Date(Date.now() - 2*60*1000).toISOString();
-        const { data: pres } = await supabase
-          .from('room_presence')
-          .select('room_id,last_seen')
-          .gt('last_seen', cutoff);
-
-        const countMap = {};
-        (pres||[]).forEach(r => { countMap[r.room_id] = (countMap[r.room_id]||0) + 1; });
-
-        roomsWrap.innerHTML = '';
-        if (!rooms.length) {
-          roomsWrap.innerHTML = '<div class="p-4 text-slate-500">Nessuna stanza trovata.</div>';
-          return;
-        }
-
-        rooms.forEach(r => {
-          const row = document.createElement('div');
-          row.className = 'p-4 flex items-center justify-between';
-
-          const left = document.createElement('div');
-          left.innerHTML = `
-            <div class="font-medium">${escapeHtml(r.name || '—')}</div>
-            <div class="text-sm text-slate-600">${escapeHtml(r.address || '—')}</div>
-            <div class="text-xs text-slate-500">${new Date(r.created_at).toLocaleString()}</div>
-            <div class="mt-2">
-              <a class="text-xs text-slate-700 underline" href="${location.origin + location.pathname.replace('admin.html','')}?room=${r.id}" target="_blank">Apri come utente</a>
+    roomsList.innerHTML = data.map(r => {
+      const created = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+      const address = r.address || '';
+      const desc = r.description ? `<div class="text-xs opacity-80 mt-1">${escapeHtml(r.description)}</div>` : '';
+      const joinUrl = `join.html?room=${encodeURIComponent(r.id)}`;
+      return `
+        <div class="py-4 flex items-start gap-3">
+          <div class="flex-1">
+            <div class="font-semibold">${escapeHtml(r.name || 'Senza nome')}</div>
+            <div class="text-xs opacity-70">${created} ${address ? ' • ' + escapeHtml(address) : ''}</div>
+            ${desc}
+            <div class="mt-2 text-xs">
+              <a class="link" href="${joinUrl}" target="_blank">Apri pagina di ingresso</a>
             </div>
-          `;
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="chip px-3 py-1.5 rounded-lg text-sm" onclick="copyJoin('${joinUrl}')">Copia link</button>
+            <button class="chip px-3 py-1.5 rounded-lg text-sm" onclick="delRoom('${r.id}')">Elimina</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
 
-          const right = document.createElement('div');
-          right.className = 'flex items-center gap-2';
+  function escapeHtml(s){
+    return (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
 
-          const badge = document.createElement('span');
-          badge.className = 'text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700';
-          badge.textContent = (countMap[r.id]||0) + ' online';
+  async function delRoom(id){
+    if (!confirm('Eliminare definitivamente questa stanza?')) return;
+    const { error } = await sb.from('rooms').delete().eq('id', id);
+    if (error){ alert('Errore: ' + error.message); return; }
+    location.reload();
+  }
 
-          const del = document.createElement('button');
-          del.textContent = 'Elimina';
-          del.className = 'px-3 py-2 rounded-lg bg-rose-600 text-white';
-          del.onclick = async () => {
-            if (!confirm('Eliminare la stanza?')) return;
-            try{
-              const { error: e } = await supabase.from('rooms').delete().eq('id', r.id);
-              if (e) throw e;
-              loadRooms();
-            } catch(e){ showErr(e); }
-          };
-
-          right.append(badge, del);
-          row.append(left, right);
-          roomsWrap.append(row);
-        });
-      } catch(e){ showErr(e); }
+  async function copyJoin(path){
+    const url = `${location.origin.replace(/\/$/, '')}/${path}`;
+    try{
+      await navigator.clipboard.writeText(url);
+      showNotice(`<div class="text-green-300">Link copiato: ${escapeHtml(url)}</div>`);
+      setTimeout(hideNotice, 2500);
+    }catch{
+      alert(url);
     }
-
-    function escapeHtml(s=''){
-      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
-
-    refreshBtn && (refreshBtn.onclick = loadRooms);
-    searchInput && searchInput.addEventListener('input', () => { loadRooms(); });
-
-    // Render all
-    renderAuth();
-  </script>
+  }
+</script>
 </body>
 </html>
