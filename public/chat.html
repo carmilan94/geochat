@@ -13,15 +13,24 @@
     .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:800}
     a.user{color:#ffd18a;text-decoration:underline}
 
-    /* Lista messaggi */
+    /* lista messaggi */
     #messages{height:60vh;overflow-y:auto;scroll-behavior:smooth;padding:6px}
 
-    /* Bubble slim stile WhatsApp */
+    /* bubbles slim stile WhatsApp */
     .row{padding:.22rem .18rem}
     .meta{font-size:.68rem;opacity:.65;margin:0 .25rem .22rem}
-    .bubble{display:inline-block;padding:.45rem .65rem;border-radius:14px;font-size:14px;line-height:1.32;max-width:72%;word-wrap:break-word;box-shadow:0 1px 2px rgba(0,0,0,.25)}
-    .bubble-other{background:#1b1b1d;border:1px solid rgba(255,255,255,.08)}
-    .bubble-me{background:#ffc86a;color:#111}
+    .bubble{
+      display:inline-block;
+      padding:.45rem .65rem;
+      border-radius:14px;
+      font-size:14px;
+      line-height:1.32;
+      max-width:72%;
+      word-wrap:break-word;
+      box-shadow:0 1px 2px rgba(0,0,0,.25)
+    }
+    .bubble-other{background:#1b1b1d;border:1px solid rgba(255,255,255,.08);color:#f3f3f3}
+    .bubble-me{background:#ffb84d;color:#111} /* arancione pastello */
     @media (max-width:480px){ .bubble{max-width:78%} }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -52,7 +61,7 @@
   <div id="messages" class="glass rounded-xl"></div>
 
   <div class="mt-3 flex gap-2">
-    <input id="msgInput" class="flex-1 chip rounded-lg px-3 py-2" placeholder="Scrivi un messaggio… (Invio per inviare)" />
+    <input id="msgInput" class="flex-1 chip rounded-lg px-3 py-2" placeholder="Scrivi un messaggio… (Invio per inviare)"/>
     <button id="sendBtn" class="btn-main rounded-lg px-4">Invia</button>
   </div>
 </main>
@@ -76,21 +85,20 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 const qs = new URLSearchParams(location.search);
 const roomId = qs.get('room');
 
-const messagesEl   = document.getElementById('messages');
-const msgInput     = document.getElementById('msgInput');
-const sendBtn      = document.getElementById('sendBtn');
-const roomTitleEl  = document.getElementById('roomTitle');
-const roomNameEl   = document.getElementById('roomName');
-const activeCount  = document.getElementById('activeCount');
-const presenceModal= document.getElementById('presenceModal');
-const presenceList = document.getElementById('presenceList');
+const messagesEl    = document.getElementById('messages');
+const msgInput      = document.getElementById('msgInput');
+const sendBtn       = document.getElementById('sendBtn');
+const roomTitleEl   = document.getElementById('roomTitle');
+const roomNameEl    = document.getElementById('roomName');
+const activeCount   = document.getElementById('activeCount');
+const presenceModal = document.getElementById('presenceModal');
+const presenceList  = document.getElementById('presenceList');
 
-let me = null;           // session.user
-let meName = 'Tu';       // visualizzazione per me
-let profileCache = new Map(); // user_id -> display_name
+let me = null;                      // session.user
+let profileCache = new Map();       // user_id -> display_name
 let presenceChannel = null;
 
-// ---- INIT ----
+// ------------ INIT ------------
 (async function init(){
   if (!roomId){ alert('Stanza non trovata'); location.href='index.html'; return; }
 
@@ -98,28 +106,18 @@ let presenceChannel = null;
   if (!session){ location.href='auth.html?next='+encodeURIComponent(location.pathname+location.search); return; }
   me = session.user;
 
-  // Link Esci
   const link = document.getElementById('authLink');
   link.textContent = 'Esci';
   link.onclick = async (e)=>{ e.preventDefault(); await sb.auth.signOut(); location.href='index.html'; };
 
-  // Room name
   const { data: room } = await sb.from('rooms').select('name').eq('id', roomId).maybeSingle();
   roomTitleEl.textContent = room?.name || 'GeoChat';
   roomNameEl.textContent  = room?.name || 'Chat locale';
 
-  // Il mio display_name (solo per presence)
-  const { data: prof } = await sb.from('profiles').select('display_name').eq('id', me.id).maybeSingle();
-  if (prof?.display_name) meName = 'Tu'; // label “Tu” per i miei messaggi
-
-  // Carica messaggi e subscribe
   await loadMessages();
   subscribeRealtime();
-
-  // Presence realtime
   setupPresence();
 
-  // UI
   sendBtn.onclick = sendMessage;
   msgInput.addEventListener('keydown', e=>{
     if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
@@ -129,15 +127,16 @@ let presenceChannel = null;
   document.getElementById('closePresence').onclick = () => presenceModal.classList.add('hidden');
 })();
 
-// ---- LOAD ----
+// ------------ LOAD ------------
 async function loadMessages(){
   const { data, error } = await sb.from('messages')
     .select('id, body, created_at, user_id')
     .eq('room_id', roomId)
     .order('created_at', { ascending: true })
     .limit(200);
+
   messagesEl.innerHTML='';
-  if (error) {
+  if (error){
     messagesEl.innerHTML = '<div class="p-3 text-sm text-red-300">Errore nel caricamento.</div>';
     return;
   }
@@ -145,7 +144,7 @@ async function loadMessages(){
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
-// ---- REALTIME ----
+// ------------ REALTIME ------------
 function subscribeRealtime(){
   sb.channel('public:messages:'+roomId)
     .on('postgres_changes',
@@ -154,10 +153,10 @@ function subscribeRealtime(){
     ).subscribe();
 }
 
-// ---- DISPLAY NAME by user_id (con cache) ----
+// ------------ DISPLAY NAME via user_id (cache) ------------
 async function getDisplayName(uid){
   if (!uid) return 'Anonimo';
-  if (uid === me.id) return meName;       // i miei messaggi → “Tu”
+  if (uid === me.id) return 'Tu';  // i miei messaggi
   const cached = profileCache.get(uid);
   if (cached) return cached;
   const { data } = await sb.from('profiles').select('display_name').eq('id', uid).maybeSingle();
@@ -166,33 +165,38 @@ async function getDisplayName(uid){
   return dn;
 }
 
-// ---- RENDER MESSAGE ----
+// ------------ RENDER MESSAGE ------------
 async function renderMessage(m){
   const uid  = m.user_id || null;
   const mine = uid === me.id;
   const who  = await getDisplayName(uid);
   const time = m.created_at ? new Date(m.created_at).toLocaleTimeString() : '';
 
+  // wrapper riga che controlla l'allineamento di TUTTO (meta + bubble)
   const row = document.createElement('div');
-  row.className = 'row';
+  row.className = 'row flex ' + (mine ? 'justify-end' : 'justify-start');
 
-  // meta riga (nome + ora)
+  // blocco verticale (meta sopra, bubble sotto)
+  const block = document.createElement('div');
+  block.className = 'flex flex-col ' + (mine ? 'items-end' : 'items-start');
+
   const meta = document.createElement('div');
   meta.className = 'meta ' + (mine ? 'text-right' : 'text-left');
   meta.innerHTML = mine
     ? `<span class="font-medium text-amber-400">Tu</span> <span>${time}</span>`
     : `<a class="user font-medium" href="profile.html?uid=${encodeURIComponent(uid||'')}">${escapeHtml(who)}</a> <span>${time}</span>`;
 
-  // bubble
   const bubble = document.createElement('div');
-  bubble.className = 'bubble ' + (mine ? 'bubble-me ml-auto' : 'bubble-other mr-auto');
+  bubble.className = 'bubble ' + (mine ? 'bubble-me' : 'bubble-other');
   bubble.innerHTML = linkify(escapeHtml(m.body||''));
 
-  messagesEl.appendChild(meta);
-  messagesEl.appendChild(bubble);
+  block.appendChild(meta);
+  block.appendChild(bubble);
+  row.appendChild(block);
+  messagesEl.appendChild(row);
 }
 
-// ---- SEND ----
+// ------------ SEND ------------
 async function sendMessage(){
   const txt = (msgInput.value||'').trim();
   if (!txt) return;
@@ -201,12 +205,12 @@ async function sendMessage(){
   if (error){ console.error(error); alert('Errore invio messaggio: '+error.message); }
 }
 
-// ---- PRESENCE ----
+// ------------ PRESENCE ------------
 function setupPresence(){
-  presenceChannel = sb.channel('presence:room:'+roomId, { config: { presence: { key: me.id } } });
+  const ch = sb.channel('presence:room:'+roomId, { config: { presence: { key: me.id } } });
 
   const refresh = ()=>{
-    const state = presenceChannel.presenceState(); // { uid: [ {display_name}, ... ] }
+    const state = ch.presenceState(); // { uid: [ {display_name}, ... ] }
     const ids = Object.keys(state||{});
     activeCount.textContent = `${ids.length} membri attivi`;
     presenceList.innerHTML = ids.length
@@ -217,23 +221,25 @@ function setupPresence(){
       : '<div class="py-4 text-sm opacity-70">Nessuno online al momento.</div>';
   };
 
-  presenceChannel.on('presence', { event:'sync' }, refresh);
-  presenceChannel.on('presence', { event:'join' }, refresh);
-  presenceChannel.on('presence', { event:'leave' }, refresh);
+  ch.on('presence', { event:'sync' }, refresh);
+  ch.on('presence', { event:'join' }, refresh);
+  ch.on('presence', { event:'leave' }, refresh);
 
-  presenceChannel.subscribe(async status=>{
+  ch.subscribe(async status=>{
     if (status==='SUBSCRIBED'){
       const { data } = await sb.from('profiles').select('display_name').eq('id', me.id).maybeSingle();
-      await presenceChannel.track({ display_name: data?.display_name || 'Anonimo', room_id: roomId });
+      await ch.track({ display_name: data?.display_name || 'Anonimo', room_id: roomId });
     }
   });
+
+  // store per cleanup
+  presenceChannel = ch;
 }
 
-// ---- UTILS ----
+// ------------ UTILS ------------
 function escapeHtml(s){return (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 function linkify(t){return t.replace(/\b(https?:\/\/[^\s<]+)\b/g,'<a class="user" href="$1" target="_blank" rel="noopener">$1</a>');}
 
-// cleanup presence
 window.addEventListener('beforeunload',()=>{ try{ presenceChannel?.untrack(); }catch(_){} });
 </script>
 </body>
