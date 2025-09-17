@@ -1,124 +1,237 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GeoChat • Chat</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>IMIN • Chat</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233}
     body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea}
     .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
     .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
-    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
-    #log{height:58vh;overflow:auto}
+    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:800}
+    a.user{color:#ffd18a;text-decoration:underline}
+    .msg{border-bottom:1px solid rgba(255,255,255,.06)}
+    .msg-time{opacity:.6;font-size:.72rem}
+    .scroll{scroll-behavior:smooth}
   </style>
-  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZD33JtcrbvN-THBixRMhPdvc9m8tT9s&libraries=geometry&callback=initChat"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<header class="w-full py-4 px-5 flex items-center justify-between">
-  <div class="flex items-center gap-2">
-    <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-bold text-black">GC</div>
-    <div class="font-extrabold text-xl" id="roomTitle">GeoChat</div>
+<header class="w-full py-3 px-4">
+  <div class="max-w-4xl mx-auto">
+    <nav class="flex items-center justify-between">
+      <a href="index.html" class="chip px-3 py-1.5 rounded-lg text-sm">⟵ Home</a>
+      <a href="create.html" class="chip px-3 py-1.5 rounded-lg text-sm">Crea chat</a>
+    </nav>
   </div>
-  <nav class="flex items-center gap-3 text-sm">
-    <a href="index.html" class="chip px-3 py-1.5 rounded-lg">Home</a>
-    <a id="authLink" href="auth.html" class="chip px-3 py-1.5 rounded-lg">Entra</a>
-  </nav>
 </header>
 
-<main class="max-w-3xl mx-auto px-4 pb-24">
-  <div id="geoWarn" class="glass rounded-xl p-3 mb-3 text-sm hidden"></div>
-  <div id="log" class="glass rounded-xl p-4"></div>
-  <form id="formMsg" class="mt-3 flex gap-2">
-    <input id="msg" class="flex-1 chip rounded-lg px-3 py-2" placeholder="Scrivi un messaggio…" />
-    <button class="btn-main rounded-lg px-4">Invia</button>
-  </form>
+<main class="max-w-4xl mx-auto px-4 pb-24">
+  <!-- HEADER CHAT -->
+  <div id="roomHeader" class="glass rounded-xl px-4 py-3 mb-3 cursor-pointer">
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <div id="roomName" class="font-extrabold text-lg underline decoration-white/30">Chat</div>
+        <div id="activeCount" class="text-xs opacity-80">Membri attivi — …</div>
+      </div>
+      <div class="chip rounded-lg px-3 py-1.5 text-xs">Vedi membri</div>
+    </div>
+  </div>
+
+  <!-- LISTA MESSAGGI -->
+  <div id="messages" class="glass rounded-xl p-3 h-[60vh] overflow-y-auto scroll"></div>
+
+  <!-- INPUT -->
+  <div class="mt-3 flex gap-2">
+    <input id="msgInput" class="flex-1 chip rounded-lg px-3 py-2" placeholder="Scrivi un messaggio… (Invio per inviare)"/>
+    <button id="sendBtn" class="btn-main rounded-lg px-4">Invia</button>
+  </div>
 </main>
 
+<!-- MODALE PRESENZA -->
+<div id="presenceModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50">
+  <div class="bg-[#151515] border border-[#252525] rounded-xl p-4 w-[92%] max-w-md">
+    <div class="flex items-center justify-between mb-2">
+      <div class="font-bold">Membri attivi</div>
+      <button id="closePresence" class="chip rounded-md px-2 py-1 text-sm">Chiudi</button>
+    </div>
+    <div id="presenceList" class="divide-y divide-white/10"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
-  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const SUPABASE_URL  = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  const params = new URLSearchParams(location.search);
-  const roomId = params.get('room');
-  if (!roomId){ location.replace('index.html'); }
+const qs = new URLSearchParams(location.search);
+const roomId = qs.get('room');
 
-  let room=null, canSend=false;
+const messagesEl   = document.getElementById('messages');
+const msgInput     = document.getElementById('msgInput');
+const sendBtn      = document.getElementById('sendBtn');
+const roomNameEl   = document.getElementById('roomName');
+const activeCount  = document.getElementById('activeCount');
+const presenceModal= document.getElementById('presenceModal');
+const presenceList = document.getElementById('presenceList');
+const roomHeader   = document.getElementById('roomHeader');
 
-  window.initChat = async function(){
-    // GATE: richiede login
-    const { data:{session} } = await sb.auth.getSession();
-    if (!session){
-      location.replace(`auth.html?next=${encodeURIComponent(location.pathname+location.search)}`);
-      return;
-    }
-    const l = document.getElementById('authLink');
-    l.textContent='Esci'; l.onclick=async(e)=>{e.preventDefault(); await sb.auth.signOut(); location.href='index.html'};
+let sessionUser = null;
+let meName = 'Utente';
+let profileCache = new Map(); // user_id -> {display_name}
+let presenceState = {};       // user_id -> {display_name}
+let presenceChannel = null;
 
-    // stanza
-    const { data, error } = await sb.from('rooms').select('*').eq('id',roomId).single();
-    if (error || !data){ alert('Stanza non trovata'); location.replace('index.html'); return; }
-    room=data; document.getElementById('roomTitle').textContent = room.name||'Chat';
+// ---------- INIT ----------
+(async function init(){
+  if (!roomId){ alert('Stanza non trovata'); location.href='index.html'; return; }
 
-    // check perimetro → se fuori torna a join
-    navigator.geolocation.getCurrentPosition(pos=>{
-      const me = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
-      const path = (room.polygon?.coordinates?.[0]||[]).map(([lng,lat])=>({lat,lng}));
-      const poly = new google.maps.Polygon({paths:path});
-      const inside = google.maps.geometry.poly.containsLocation(me, poly);
-      if (!inside){ location.replace(`join.html?room=${encodeURIComponent(roomId)}&reason=outside`); return; }
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session){ location.href = 'auth.html?next=' + encodeURIComponent(location.pathname + location.search); return; }
+  sessionUser = session.user;
 
-      canSend=true; bootChat();
-    }, _=>{
-      document.getElementById('geoWarn').classList.remove('hidden');
-      document.getElementById('geoWarn').textContent='Posizione non disponibile: ritorno al check-in.';
-      setTimeout(()=>location.replace(`join.html?room=${encodeURIComponent(roomId)}&reason=nolocation`), 1200);
-    }, { enableHighAccuracy:true, maximumAge:0, timeout:10000 });
-  };
+  // prendo display_name utente loggato
+  const { data: meProf } = await sb.from('profiles').select('display_name').eq('id', sessionUser.id).maybeSingle();
+  meName = meProf?.display_name || (sessionUser.email||'').split('@')[0] || 'Utente';
 
-  async function bootChat(){
-    await loadMessages();
-    subscribeRealtime();
+  // nome stanza
+  const { data: room } = await sb.from('rooms').select('name').eq('id', roomId).maybeSingle();
+  roomNameEl.textContent = room?.name || 'Chat locale';
 
-    document.getElementById('formMsg').addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      if (!canSend){ alert('Fuori perimetro: invio bloccato.'); return; }
-      const val = document.getElementById('msg').value.trim();
-      if (!val) return;
-      document.getElementById('msg').value='';
-      const { error } = await sb.from('messages').insert({ room_id:roomId, body:val });
-      if (error){ console.error(error); alert('Invio non riuscito'); }
+  // carica messaggi iniziali
+  await loadMessages();
+
+  // subscribe nuovi messaggi
+  sb.channel('public:messages:'+roomId)
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'messages', filter: 'room_id=eq.'+roomId },
+      payload => renderMessage(payload.new)
+    )
+    .subscribe();
+
+  // presence realtime
+  presenceChannel = sb.channel('presence:room:'+roomId, { config: { presence: { key: sessionUser.id } } });
+
+  presenceChannel.on('presence', { event: 'sync' }, () => {
+    const raw = presenceChannel.presenceState(); // { user_id: [ {display_name}, ... ] }
+    const next = {};
+    Object.entries(raw).forEach(([uid, metas])=>{
+      if (metas && metas.length) next[uid] = { display_name: metas[0].display_name || 'Utente' };
     });
-  }
+    presenceState = next;
+    updatePresenceUI();
+  });
 
-  async function loadMessages(){
-    const { data } = await sb.from('messages')
-      .select('id,body,created_at,user_id')
-      .eq('room_id',roomId).order('created_at',{ascending:true}).limit(200);
-    const log=document.getElementById('log'); log.innerHTML='';
-    (data||[]).forEach(addMsg); log.scrollTop=log.scrollHeight;
-  }
+  presenceChannel.on('presence', { event: 'join' }, () => updatePresenceUI());
+  presenceChannel.on('presence', { event: 'leave' }, () => updatePresenceUI());
 
-  function subscribeRealtime(){
-    sb.channel('public:messages')
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:`room_id=eq.${roomId}`},
-        payload=>{
-          addMsg(payload.new);
-          const log=document.getElementById('log'); log.scrollTop=log.scrollHeight;
-        }).subscribe();
-  }
+  await presenceChannel.subscribe(async (status) => {
+    if (status === 'SUBSCRIBED') {
+      await presenceChannel.track({ display_name: meName, room_id: roomId });
+    }
+  });
 
-  function addMsg(m){
-    const row = document.createElement('div');
-    row.className='py-1';
-    const t = new Date(m.created_at).toLocaleTimeString();
-    row.innerHTML = `<span class="opacity-60 text-xs">${t}</span> <span class="opacity-80">${escapeHtml(m.body)}</span>`;
-    document.getElementById('log').appendChild(row);
+  // UI handlers
+  sendBtn.onclick = sendMessage;
+  msgInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  roomHeader.onclick = () => presenceModal.classList.remove('hidden');
+  document.getElementById('closePresence').onclick = () => presenceModal.classList.add('hidden');
+})();
+
+// ---------- LOAD / RENDER ----------
+async function loadMessages(){
+  messagesEl.innerHTML = '<div class="text-sm opacity-70 p-2">Caricamento…</div>';
+  const { data, error } = await sb
+    .from('messages')
+    .select('id, content, created_at, user_id')
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: true })
+    .limit(200);
+  if (error){ messagesEl.innerHTML = '<div class="text-sm text-red-300 p-2">Errore nel caricamento.</div>'; return; }
+  messagesEl.innerHTML = '';
+  for (const m of data) renderMessage(m);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+async function renderMessage(msg){
+  // prendi display_name da cache o dal DB
+  let name = profileCache.get(msg.user_id)?.display_name;
+  if (!name && msg.user_id){
+    const { data: prof } = await sb.from('profiles').select('display_name').eq('id', msg.user_id).maybeSingle();
+    name = prof?.display_name || 'Utente';
+    profileCache.set(msg.user_id, { display_name: name });
   }
-  function escapeHtml(s){return (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
+  const who = name || 'Utente';
+  const uid = msg.user_id;
+
+  const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString() : '';
+  const mine = uid === sessionUser.id;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'msg py-2';
+  wrap.innerHTML = `
+    <div class="flex items-start gap-2 ${mine ? 'flex-row-reverse text-right' : ''}">
+      <div class="flex-1">
+        <div class="text-xs mb-0.5">
+          <a class="user" href="profile.html?uid=${encodeURIComponent(uid || '')}" target="_self">${escapeHtml(who)}</a>
+          <span class="msg-time ${mine ? 'mr-1' : 'ml-1'}">${time}</span>
+        </div>
+        <div class="inline-block max-w-[90%] ${mine ? 'bg-amber-400 text-black' : 'chip'} rounded-lg px-3 py-2 whitespace-pre-wrap break-words">
+          ${linkify(escapeHtml(msg.content || ''))}
+        </div>
+      </div>
+    </div>
+  `;
+  messagesEl.appendChild(wrap);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+// ---------- SEND ----------
+async function sendMessage(){
+  const text = (msgInput.value || '').trim();
+  if (!text) return;
+  msgInput.value = '';
+  const { error } = await sb.from('messages').insert({
+    room_id: roomId,
+    user_id: sessionUser.id,
+    content: text
+  });
+  if (error){
+    console.error(error);
+    alert('Errore invio messaggio: ' + error.message);
+  }
+}
+
+// ---------- PRESENCE UI ----------
+function updatePresenceUI(){
+  const ids = Object.keys(presenceState);
+  activeCount.textContent = `${ids.length} membri attivi`;
+  presenceList.innerHTML = ids.length
+    ? ids.map(uid => {
+        const dn = presenceState[uid]?.display_name || 'Utente';
+        return `<div class="py-2 text-sm">
+          <a class="user" href="profile.html?uid=${encodeURIComponent(uid)}">${escapeHtml(dn)}</a>
+        </div>`;
+      }).join('')
+    : '<div class="py-4 text-sm opacity-70">Nessuno online al momento.</div>';
+}
+
+// ---------- UTILS ----------
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+function linkify(text){
+  const urlRe = /\b(https?:\/\/[^\s<]+)\b/g;
+  return text.replace(urlRe, '<a class="user" href="$1" target="_blank" rel="noopener">$1</a>');
+}
+
+// ---------- CLEANUP on unload ----------
+window.addEventListener('beforeunload', () => {
+  if (presenceChannel) presenceChannel.untrack().catch(()=>{});
+});
 </script>
 </body>
 </html>
