@@ -8,35 +8,16 @@
   <link rel="icon" href="data:,">
   <style>
     body{min-height:100vh}
-    /* Stato base dei pannelli */
     .panes #paneLogin  { display:block; }
     .panes #paneSignup { display:none;  }
-    /* Contenitore pill-bar */
-    .tabs{
-      display:flex; gap:.5rem;
-      background:#f1f5f9; /* slate-100 */
-      border:1px solid #e2e8f0; /* slate-200 */
-      border-radius:14px; padding:6px;
-    }
-    .tab-btn{
-      flex:1; text-align:center;
-      padding:.55rem .75rem; border-radius:10px;
-      font-weight:600; color:#475569; /* slate-600 */
-      cursor:pointer; user-select:none;
-      transition:background .2s, color .2s, box-shadow .2s;
-    }
-    .tab-btn:hover{ color:#0f172a; } /* slate-900 */
-    .tab-btn:focus-visible{ outline:2px solid #0ea5e9; outline-offset:2px; } /* sky-500 */
-
-    /* Attivo */
+    .tabs{ display:flex; gap:.5rem; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:14px; padding:6px; }
+    .tab-btn{ flex:1; text-align:center; padding:.55rem .75rem; border-radius:10px;
+      font-weight:600; color:#475569; cursor:pointer; user-select:none; transition:background .2s, color .2s, box-shadow .2s; }
+    .tab-btn:hover{ color:#0f172a; }
+    .tab-btn:focus-visible{ outline:2px solid #0ea5e9; outline-offset:2px; }
     #tab-login:checked  ~ .tabs #lblLogin,
-    #tab-signup:checked ~ .tabs #lblSignup{
-      background:#ffffff;
-      color:#0f172a; /* slate-900 */
-      box-shadow:0 1px 2px rgba(0,0,0,.06), 0 1px 8px rgba(0,0,0,.04);
-    }
-
-    /* Switch dei pannelli */
+    #tab-signup:checked ~ .tabs #lblSignup{ background:#ffffff; color:#0f172a;
+      box-shadow:0 1px 2px rgba(0,0,0,.06), 0 1px 8px rgba(0,0,0,.04); }
     #tab-signup:checked ~ .panes #paneLogin  { display:none;  }
     #tab-signup:checked ~ .panes #paneSignup { display:block; }
   </style>
@@ -47,17 +28,14 @@
       <h1 class="text-2xl font-bold text-center">GeoChat</h1>
       <p class="text-center text-slate-600 mt-1">Accedi o crea un account</p>
 
-      <!-- Radio nascosti per il toggle CSS -->
       <input type="radio" name="tab" id="tab-login"  class="hidden" checked>
       <input type="radio" name="tab" id="tab-signup" class="hidden">
 
-      <!-- Pill Bar -->
       <div class="mt-4 tabs">
         <label for="tab-login"  id="lblLogin"  class="tab-btn" tabindex="0">Accedi</label>
         <label for="tab-signup" id="lblSignup" class="tab-btn" tabindex="0">Registrati</label>
       </div>
 
-      <!-- Pannelli -->
       <div class="panes">
         <!-- LOGIN -->
         <form id="paneLogin" class="mt-4 space-y-3">
@@ -104,7 +82,7 @@
       <p class="mt-2 text-center">
         <a href="/" class="text-sm text-slate-700 underline">Torna alla Home</a>
       </p>
-      <p class="text-center text-xs text-slate-400 mt-2">build: v7</p>
+      <p class="text-center text-xs text-slate-400 mt-2">build: v8</p>
     </div>
   </div>
 
@@ -122,28 +100,25 @@
     setMsg('Errore: libreria Supabase non caricata. Ricarica la pagina (Ctrl+F5).');
     return;
   }
-  var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
   // LOGIN
-  document.getElementById('paneLogin').addEventListener('submit', function(e){
+  document.getElementById('paneLogin').addEventListener('submit', async function(e){
     e.preventDefault();
     setMsg('Accesso in corso…');
     var email = document.getElementById('lEmail').value.trim();
     var password = document.getElementById('lPassword').value;
 
-    supabase.auth.signInWithPassword({ email: email, password: password })
-      .then(function(res){
-        console.log('[LOGIN result]', res);
-        if (res.error){ setMsg(res.error.message); return; }
-        ensureProfileDisplayName().then(function(){
-          setMsg('Accesso riuscito! Reindirizzo…');
-          setTimeout(function(){ location.href = '/'; }, 600);
-        });
-      });
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error){ setMsg(error.message); return; }
+
+    await ensureProfileDisplayName();
+    setMsg('Accesso riuscito! Reindirizzo…');
+    setTimeout(function(){ location.href = '/'; }, 600);
   });
 
   // SIGNUP
-  document.getElementById('paneSignup').addEventListener('submit', function(e){
+  document.getElementById('paneSignup').addEventListener('submit', async function(e){
     e.preventDefault();
     setMsg('');
     var first = document.getElementById('sFirst').value.trim();
@@ -156,48 +131,35 @@
     if (pass !== pass2){ setMsg('Le password non coincidono.'); return; }
 
     setMsg('Registrazione in corso…');
-    supabase.auth.signUp({
+    const { data, error } = await sb.auth.signUp({
       email: email,
       password: pass,
       options: { data: { first_name: first, last_name: last } }
-    })
-    .then(function(res){
-      console.log('[SIGNUP result]', res);
-      if (res.error){ setMsg(res.error.message); return; }
-      ensureProfileDisplayName(first, last).then(function(){
-        setMsg('Registrazione effettuata! Se richiesto, controlla la tua email; altrimenti sei già dentro.');
-        setTimeout(function(){ location.href = '/'; }, 800);
-      });
     });
+    if (error){ setMsg(error.message); return; }
+
+    await ensureProfileDisplayName(first, last);
+    setMsg('Registrazione effettuata! Controlla la tua email (se richiesto).');
+    setTimeout(function(){ location.href = '/'; }, 800);
   });
 
-  // Crea/aggiorna profilo con display_name
-  function ensureProfileDisplayName(first, last){
-    return supabase.auth.getUser().then(function(r){
-      var user = r && r.data ? r.data.user : null;
-      if (!user) return;
+  // Upsert del profilo
+  async function ensureProfileDisplayName(first, last){
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return;
 
-      // ricava nome/cognome: prioritario ciò che passa il form
-      var fn = first;
-      var ln = last;
-      if (!fn && user.user_metadata && user.user_metadata.first_name) {
-        fn = user.user_metadata.first_name;
-      }
-      if (!ln && user.user_metadata && user.user_metadata.last_name) {
-        ln = user.user_metadata.last_name;
-      }
+    var fn = first || user.user_metadata?.first_name || '';
+    var ln = last  || user.user_metadata?.last_name || '';
+    var display = (fn + ' ' + ln).trim();
+    if (!display) { display = user.email ? user.email.split('@')[0] : 'Utente'; }
 
-      var display = (fn ? fn : '') + (ln ? (' ' + ln) : '');
-      if (!display) { display = user.email ? user.email : ''; }
-
-      return supabase.from('profiles').upsert({
-        id: user.id,
-        email: user.email,
-        display_name: display
-      }).then(function(upRes){
-        if (upRes.error) console.log('[profiles upsert error]', upRes.error);
-      });
+    const { error } = await sb.from('profiles').upsert({
+      id: user.id,
+      display_name: display
     });
+    if (error) console.error('[profiles upsert error]', error);
   }
 })();
 </script>
+</body>
+</html>
