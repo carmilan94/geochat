@@ -54,7 +54,6 @@
   <aside class="glass rounded-2xl p-5">
     <h2 class="text-lg font-bold mb-3">2) Dettagli & link/QR</h2>
 
-    <!-- Nome chat obbligatorio -->
     <label for="roomName" class="text-sm block mb-1 opacity-80">Nome della chat <span class="opacity-70">(obbligatorio)</span></label>
     <input id="roomName" class="w-full chip rounded-lg p-3 mb-3" placeholder="Es. IMIN · Bar Centrale" maxlength="80" />
 
@@ -78,7 +77,10 @@
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  // login check + navbar
+  // ⚓️ Usa SEMPRE il tuo dominio produzione per il QR/link
+  const BASE_URL = "https://geochat-pi.vercel.app";
+
+  // login check + navbar (solo su create)
   (async ()=>{
     const { data: { session } } = await sb.auth.getSession();
     const link = document.getElementById('authLink');
@@ -195,9 +197,8 @@
         return;
       }
 
-      // —— Link “alla vecchia maniera”: dominio corrente
-      const link = `${location.origin.replace(/\/$/,'')}/join.html?room=${encodeURIComponent(data.id)}`;
-
+      // 👉 Link/QR fissi verso il dominio produzione
+      const link = `${BASE_URL}/join.html?room=${encodeURIComponent(data.id)}`;
       document.getElementById('roomLink').textContent = link;
       const qr = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(link)}`;
       const img = document.getElementById('qrImg'); img.src = qr; img.alt = 'QR stanza';
