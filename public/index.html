@@ -4,38 +4,57 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>IMIN • La chat che esiste solo dove ti trovi</title>
-  <meta name="description" content="IMIN crea chat geolocalizzate: attivi una stanza legata a un perimetro GPS e ci entra solo chi è sul posto. Perfetta per bar, lidi, locali e movida." />
+  <meta name="description" content="IMIN ti permette di creare chat di prossimità: una stanza legata a un perimetro GPS a cui accede solo chi è sul posto. Ideale per bar, lidi, locali, eventi." />
   <meta name="theme-color" content="#0f0f10" />
   <link rel="icon" href="/favicon.ico" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root{--g1:#0b0b0c;--g2:#151517;--acc1:#ff8a00;--acc2:#ffb233}
-    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea;font-family:system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif}
+    :root{
+      --g1:#0b0b0c; --g2:#161618;
+      --acc1:#ff8a00; --acc2:#ffb233;
+      --muted:#cfcfcf;
+    }
+    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#f5f5f5;font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif}
     .container{max-width:1180px}
-    .glass{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(8px)}
     .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
-    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:800}
+    .glass{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(8px)}
+    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:800;box-shadow:0 10px 30px rgba(255,178,51,.15)}
+    .btn-main:hover{transform:translateY(-1px)}
     .btn-ghost{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15)}
-    .hero-img{background-image:linear-gradient( to bottom, rgba(0,0,0,.55), rgba(0,0,0,.75) ), url('https://images.unsplash.com/photo-1526367790999-0150786686a2?q=80&w=1600&auto=format&fit=crop'); background-size:cover; background-position:center;}
-    .grid-3{display:grid;grid-template-columns:repeat(1,minmax(0,1fr));gap:18px}
-    @media (min-width:768px){.grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}}
-    .kicker{letter-spacing:.08em}
-    h1,h2,h3{color:#fff}
-    a.link{text-decoration:underline}
+    .accent{background:linear-gradient(90deg,var(--acc1),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+    /* Hero anim */
+    .pulse-ring::after{
+      content:"";position:absolute;inset:-6px;border-radius:14px;
+      background:conic-gradient(from 180deg, rgba(255,138,0,.18), rgba(255,178,51,.18), transparent 40%, transparent 100%);
+      filter:blur(12px);animation:pulse 2.5s infinite ease-in-out;
+    }
+    @keyframes pulse{
+      0%,100%{opacity:.35; transform:scale(1)}
+      50%{opacity:.75; transform:scale(1.02)}
+    }
+    .soft-grad{
+      background:
+        radial-gradient(800px 400px at 10% -10%, rgba(255,178,51,.12), transparent 40%),
+        radial-gradient(900px 500px at 90% -10%, rgba(255,138,0,.10), transparent 45%);
+    }
+    /* Reveal on scroll (no lib) */
+    .reveal{opacity:0;transform:translateY(10px);transition:opacity .5s ease, transform .5s ease}
+    .reveal.show{opacity:1;transform:none}
+    details summary{list-style:none;cursor:pointer}
+    details summary::-webkit-details-marker{display:none}
   </style>
 </head>
-<body>
-
+<body class="soft-grad">
   <!-- NAV -->
-  <header class="w-full sticky top-0 z-40">
-    <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+  <header class="w-full sticky top-0 z-40 backdrop-blur-md" style="background:rgba(15,15,16,.35);border-bottom:1px solid rgba(255,255,255,.06)">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
       <a href="/" class="flex items-center gap-2">
         <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-extrabold text-black">IM</div>
-        <div class="font-extrabold text-xl">IMIN</div>
+        <div class="font-extrabold text-lg">IMIN</div>
       </a>
       <nav class="hidden md:flex items-center gap-2 text-sm">
-        <a href="#per-chi" class="chip px-3 py-1.5 rounded-lg">Per chi</a>
         <a href="#come-funziona" class="chip px-3 py-1.5 rounded-lg">Come funziona</a>
+        <a href="#per-chi" class="chip px-3 py-1.5 rounded-lg">Per chi</a>
         <a href="#vantaggi" class="chip px-3 py-1.5 rounded-lg">Vantaggi</a>
         <a href="#faq" class="chip px-3 py-1.5 rounded-lg">FAQ</a>
         <a href="app.html" class="chip px-3 py-1.5 rounded-lg">Vedi le chat</a>
@@ -44,187 +63,158 @@
     </div>
   </header>
 
-  <!-- HERO -->
-  <section class="hero-img">
-    <div class="container mx-auto px-4 py-16 md:py-24">
-      <p class="kicker uppercase text-amber-300 text-xs mb-3">Chat di prossimità</p>
-      <h1 class="text-4xl md:text-6xl font-extrabold leading-tight max-w-4xl">
-        La chat che <span class="text-amber-300">esiste solo dove ti trovi</span>.
+  <!-- HERO (centrale) -->
+  <section class="container mx-auto px-4 min-h-[72vh] flex items-center justify-center text-center">
+    <div class="max-w-3xl">
+      <p class="uppercase tracking-widest text-xs text-amber-300/90 mb-3">Chat di prossimità, davvero utile</p>
+      <h1 class="text-4xl md:text-6xl font-extrabold leading-tight">
+        La chat che <span class="accent">esiste solo dove ti trovi</span>.
       </h1>
-      <p class="opacity-90 text-lg md:text-xl max-w-3xl mt-4">
-        Con <b>IMIN</b> attivi una stanza legata al tuo perimetro GPS: bar, lido, locale o area evento.
-        Entra solo chi è fisicamente sul posto. Conversazioni utili, locali, senza caos.
+      <p class="text-lg md:text-xl text-neutral-200/95 mt-4">
+        Con <strong>IMIN</strong> crei una stanza legata a un perimetro GPS.  
+        Può entrare soltanto chi è fisicamente nell’area. Niente gruppi infiniti, niente rumore: comunicazioni chiare, locali, “qui e ora”.
       </p>
-      <div class="flex flex-wrap gap-3 mt-6">
-        <a href="create.html" class="btn-main rounded-xl px-5 py-3 text-base">Crea ora la tua chat</a>
-        <a href="app.html" class="btn-ghost rounded-xl px-5 py-3 text-base">Vedi le chat vicino a te</a>
+      <div class="flex flex-wrap gap-3 mt-7 justify-center relative">
+        <a href="create.html" class="btn-main rounded-xl px-6 py-3 text-base relative pulse-ring">Crea la tua chat</a>
+        <a href="app.html" class="btn-ghost rounded-xl px-6 py-3 text-base">Vedi le chat vicino a te</a>
       </div>
-
-      <div class="grid-3 mt-10">
-        <div class="glass p-4 rounded-xl">
-          <div class="font-semibold">Niente app da installare</div>
-          <div class="opacity-80 text-sm mt-1">QR code, autorizzi la posizione, entri.</div>
-        </div>
-        <div class="glass p-4 rounded-xl">
-          <div class="font-semibold">Zero spam</div>
-          <div class="opacity-80 text-sm mt-1">La chat vale per chi è presente. Fine serata? Fine messaggi.</div>
-        </div>
-        <div class="glass p-4 rounded-xl">
-          <div class="font-semibold">Attiva in 30 secondi</div>
-          <div class="opacity-80 text-sm mt-1">Disegni il perimetro sulla mappa, dai un nome, stampi il QR.</div>
-        </div>
+      <div class="mt-6 text-sm text-neutral-300/80">
+        Funziona via web: QR → posizione → si entra. Nessuna app da installare.
       </div>
     </div>
   </section>
 
-  <!-- PER CHI -->
-  <section id="per-chi" class="container mx-auto px-4 py-16">
-    <h2 class="text-3xl font-extrabold text-center">A chi serve IMIN</h2>
-    <p class="opacity-85 text-center max-w-3xl mx-auto mt-2">Qualsiasi luogo dove la comunicazione ha senso solo per chi è lì, in quel momento.</p>
-    <div class="grid md:grid-cols-4 gap-5 mt-8">
-      <div class="glass p-5 rounded-2xl">
-        <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=800&auto=format&fit=crop" alt="Bar" class="rounded-lg mb-3">
-        <div class="text-lg font-semibold">Bar & Caffè</div>
-        <p class="opacity-80 text-sm mt-1">Annunci flash, richieste al bancone, tavoli condivisi, oggetti smarriti.</p>
+  <!-- Punti chiave -->
+  <section class="container mx-auto px-4 pb-6">
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="glass rounded-xl p-5 reveal">
+        <div class="font-semibold">Accesso solo in presenza</div>
+        <div class="text-sm text-neutral-300 mt-1">La chat è legata al luogo. Se non sei lì, non entri: semplice e pulito.</div>
       </div>
-      <div class="glass p-5 rounded-2xl">
-        <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=800&auto=format&fit=crop" alt="Lidi" class="rounded-lg mb-3">
-        <div class="text-lg font-semibold">Lidi & Beach club</div>
-        <p class="opacity-80 text-sm mt-1">Info sdraio, eventi in spiaggia, meteo e avvisi per chi è sul litorale.</p>
+      <div class="glass rounded-xl p-5 reveal">
+        <div class="font-semibold">Zero installazioni</div>
+        <div class="text-sm text-neutral-300 mt-1">QR code, autorizzi la posizione e sei dentro. Funziona su qualsiasi smartphone moderno.</div>
       </div>
-      <div class="glass p-5 rounded-2xl">
-        <img src="https://images.unsplash.com/photo-1521337581111-5fa7f7b4a686?q=80&w=800&auto=format&fit=crop" alt="Movida" class="rounded-lg mb-3">
-        <div class="text-lg font-semibold">Movida & Locali</div>
-        <p class="opacity-80 text-sm mt-1">Serate, promo del momento, gestione code, passaggi tra locali vicini.</p>
-      </div>
-      <div class="glass p-5 rounded-2xl">
-        <img src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=800&auto=format&fit=crop" alt="Eventi" class="rounded-lg mb-3">
-        <div class="text-lg font-semibold">Eventi & Fiere</div>
-        <p class="opacity-80 text-sm mt-1">Comunicazioni “qui e ora”: info stand, inizi, variazioni, lost&found.</p>
+      <div class="glass rounded-xl p-5 reveal">
+        <div class="font-semibold">Attiva in 30 secondi</div>
+        <div class="text-sm text-neutral-300 mt-1">Disegni il perimetro, dai un nome, stampi il QR. Fatto.</div>
       </div>
     </div>
   </section>
 
-  <!-- COME FUNZIONA -->
-  <section id="come-funziona" class="container mx-auto px-4 pb-4">
-    <div class="glass rounded-2xl p-6">
-      <div class="grid md:grid-cols-2 gap-8 items-center">
-        <div>
-          <h2 class="text-3xl font-extrabold">Come funziona</h2>
-          <ol class="list-decimal ml-5 mt-4 space-y-3 opacity-90">
-            <li><b>Crea la chat</b> su <span class="underline">Crea chat</span>, cerca il tuo posto e <b>disegna il perimetro</b> sulla mappa.</li>
-            <li><b>Dai un nome</b> (es. “IMIN · Bar Centrale”) e aggiungi una descrizione.</li>
-            <li><b>Genera il QR</b>: IMIN crea un link <code>/join.html?room=…</code>.</li>
-            <li><b>Esponi il QR</b> all’ingresso o al bancone.</li>
-            <li><b>Check-in</b>: chi scansiona, se è dentro all’area, entra in chat. Fine.</li>
-          </ol>
-          <div class="mt-6 flex gap-3">
-            <a href="create.html" class="btn-main rounded-xl px-5 py-3">Crea una chat</a>
-            <a href="join.html" class="chip rounded-xl px-5 py-3">Prova l’ingresso (demo)</a>
-          </div>
-        </div>
-        <div class="rounded-xl overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1520975916090-3105956dac38?q=80&w=1400&auto=format&fit=crop" alt="Mappa e QR" />
-        </div>
+  <!-- Come funziona -->
+  <section id="come-funziona" class="container mx-auto px-4 py-16">
+    <h2 class="text-3xl font-extrabold text-center mb-8">Come funziona</h2>
+    <div class="grid md:grid-cols-5 gap-3 text-sm">
+      <div class="chip rounded-xl p-4 reveal"><b>1. Disegna</b><br><span class="text-neutral-300">Seleziona il tuo luogo sulla mappa e traccia il perimetro.</span></div>
+      <div class="chip rounded-xl p-4 reveal"><b>2. Nomina</b><br><span class="text-neutral-300">Dai un nome chiaro (es. “IMIN · Bar Centrale”).</span></div>
+      <div class="chip rounded-xl p-4 reveal"><b>3. Genera</b><br><span class="text-neutral-300">Ottieni il QR con il link di ingresso.</span></div>
+      <div class="chip rounded-xl p-4 reveal"><b>4. Espone</b><br><span class="text-neutral-300">Metti il QR all’ingresso, al bancone, sui tavoli.</span></div>
+      <div class="chip rounded-xl p-4 reveal"><b>5. Check-in</b><br><span class="text-neutral-300">Chi è nell’area entra e scrive. Fuori area: niente accesso.</span></div>
+    </div>
+    <div class="text-center mt-8">
+      <a href="create.html" class="btn-main rounded-xl px-6 py-3">Crea una chat adesso</a>
+    </div>
+  </section>
+
+  <!-- Per chi -->
+  <section id="per-chi" class="container mx-auto px-4 pb-16">
+    <h2 class="text-3xl font-extrabold text-center mb-8">Per chi è pensata</h2>
+    <div class="grid md:grid-cols-4 gap-4">
+      <div class="glass rounded-xl p-5 reveal">
+        <div class="font-semibold">Bar & Caffè</div>
+        <div class="text-sm text-neutral-300 mt-1">Annunci di serata, richieste rapide, tavoli condivisi, oggetti smarriti.</div>
+      </div>
+      <div class="glass rounded-xl p-5 reveal">
+        <div class="font-semibold">Lidi & Beach club</div>
+        <div class="text-sm text-neutral-300 mt-1">Info sdraio, musica, meteo e avvisi per chi è già sulla spiaggia.</div>
+      </div>
+      <div class="glass rounded-xl p-5 reveal">
+        <div class="font-semibold">Locali & Movida</div>
+        <div class="text-sm text-neutral-300 mt-1">Promo del momento, gestione code, passaggi tra locali vicini.</div>
+      </div>
+      <div class="glass rounded-xl p-5 reveal">
+        <div class="font-semibold">Eventi & Fiere</div>
+        <div class="text-sm text-neutral-300 mt-1">Comunicazioni “qui e ora”: orari, variazioni, info stand, lost&found.</div>
       </div>
     </div>
   </section>
 
-  <!-- VANTAGGI -->
-  <section id="vantaggi" class="container mx-auto px-4 py-16">
-    <h2 class="text-3xl font-extrabold text-center">Perché piace a chi gestisce un posto</h2>
-    <div class="grid md:grid-cols-3 gap-5 mt-8">
-      <div class="glass p-5 rounded-2xl">
-        <div class="text-lg font-semibold">Comunicazione che non disturba</div>
-        <p class="opacity-80 text-sm mt-1">Messaggi solo per chi è presente. Fuori area? La conversazione non ti segue.</p>
+  <!-- Vantaggi -->
+  <section id="vantaggi" class="container mx-auto px-4 pb-8">
+    <h2 class="text-3xl font-extrabold text-center mb-8">Vantaggi concreti</h2>
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="chip rounded-xl p-5 reveal">
+        <div class="font-semibold">Comunicazione mirata</div>
+        <div class="text-sm text-neutral-300 mt-1">Messaggi utili solo a chi è presente. Fine serata = fine rumore.</div>
       </div>
-      <div class="glass p-5 rounded-2xl">
-        <div class="text-lg font-semibold">Ordini rapidi e annunci</div>
-        <p class="opacity-80 text-sm mt-1">Happy hour, tavoli disponibili, info utili. Tutti leggono perché sono lì.</p>
+      <div class="chip rounded-xl p-5 reveal">
+        <div class="font-semibold">Niente gruppi infiniti</div>
+        <div class="text-sm text-neutral-300 mt-1">La chat non “segue” gli utenti. È legata al luogo, non alle persone.</div>
       </div>
-      <div class="glass p-5 rounded-2xl">
-        <div class="text-lg font-semibold">Zero app, zero frizioni</div>
-        <p class="opacity-80 text-sm mt-1">QR, posizione, via. Funziona su qualsiasi smartphone moderno.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- TESTIMONIAL / SOCIAL PROOF -->
-  <section class="container mx-auto px-4 pb-16">
-    <div class="glass rounded-2xl p-6">
-      <div class="grid md:grid-cols-3 gap-5">
-        <div>
-          <div class="text-3xl font-extrabold">+70%</div>
-          <div class="opacity-80 text-sm">Interazione sui messaggi di serata</div>
-        </div>
-        <div>
-          <div class="text-3xl font-extrabold">-40%</div>
-          <div class="opacity-80 text-sm">Domande ripetute al bancone</div>
-        </div>
-        <div>
-          <div class="text-3xl font-extrabold">30s</div>
-          <div class="opacity-80 text-sm">Tempo medio di attivazione</div>
-        </div>
-      </div>
-      <div class="mt-5 grid md:grid-cols-2 gap-5">
-        <div class="chip p-4 rounded-xl">
-          “Perfetta per i nostri eventi: tutti informati senza gruppi infiniti.” — <b>Marco, bar manager</b>
-        </div>
-        <div class="chip p-4 rounded-xl">
-          “Spiaggia più ordinata: meteo, musica e oggetti smarriti risolti in chat.” — <b>Giulia, lido</b>
-        </div>
+      <div class="chip rounded-xl p-5 reveal">
+        <div class="font-semibold">Adozione istantanea</div>
+        <div class="text-sm text-neutral-300 mt-1">Zero app, zero frizioni: QR, posizione, via.</div>
       </div>
     </div>
   </section>
 
   <!-- CTA -->
-  <section class="container mx-auto px-4 pb-16">
+  <section class="container mx-auto px-4 py-16">
     <div class="glass rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
       <div>
         <div class="text-lg font-extrabold">Pronto a provarla nel tuo posto?</div>
-        <div class="opacity-80 text-sm mt-1">Crea una chat in 30 secondi. È gratis per iniziare.</div>
+        <div class="text-sm text-neutral-300 mt-1">Crea una chat in meno di un minuto. Gratis per iniziare.</div>
       </div>
       <div class="flex gap-3">
-        <a href="create.html" class="btn-main rounded-xl px-5 py-3">Crea una chat</a>
-        <a href="app.html" class="chip rounded-xl px-5 py-3">Vedi le chat</a>
+        <a href="create.html" class="btn-main rounded-xl px-6 py-3">Crea chat</a>
+        <a href="app.html" class="btn-ghost rounded-xl px-6 py-3">Vedi le chat</a>
       </div>
     </div>
   </section>
 
   <!-- FAQ -->
   <section id="faq" class="container mx-auto px-4 pb-24">
-    <h2 class="text-3xl font-extrabold text-center">Domande frequenti</h2>
-    <div class="mt-6 space-y-3">
-      <details class="glass rounded-xl p-4">
-        <summary class="font-semibold cursor-pointer">Serve installare un’app?</summary>
-        <div class="opacity-85 text-sm mt-2">No. Tutto via web: scansioni il QR, autorizzi la posizione e accedi.</div>
+    <h2 class="text-3xl font-extrabold text-center mb-6">Domande frequenti</h2>
+    <div class="space-y-3 max-w-3xl mx-auto">
+      <details class="glass rounded-xl p-4 reveal">
+        <summary class="font-semibold">Serve installare un’app?</summary>
+        <div class="text-sm text-neutral-300 mt-2">No. Tutto via web: scansioni il QR, autorizzi la posizione e accedi.</div>
       </details>
-      <details class="glass rounded-xl p-4">
-        <summary class="font-semibold cursor-pointer">Chi può entrare nella chat?</summary>
-        <div class="opacity-85 text-sm mt-2">Solo chi si trova dentro il perimetro che hai disegnato sulla mappa. Fuori dall’area non si accede.</div>
+      <details class="glass rounded-xl p-4 reveal">
+        <summary class="font-semibold">Chi può entrare nella chat?</summary>
+        <div class="text-sm text-neutral-300 mt-2">Solo chi si trova all’interno del perimetro che hai disegnato sulla mappa.</div>
       </details>
-      <details class="glass rounded-xl p-4">
-        <summary class="font-semibold cursor-pointer">Posso creare più chat?</summary>
-        <div class="opacity-85 text-sm mt-2">Sì, una per ogni location o area. Le gestisci dalla sezione Admin.</div>
+      <details class="glass rounded-xl p-4 reveal">
+        <summary class="font-semibold">Posso creare più chat?</summary>
+        <div class="text-sm text-neutral-300 mt-2">Sì, una per ogni location o area. Le gestisci dalla sezione Admin.</div>
       </details>
-      <details class="glass rounded-xl p-4">
-        <summary class="font-semibold cursor-pointer">Quanto costa?</summary>
-        <div class="opacity-85 text-sm mt-2">Puoi iniziare gratis. Piani avanzati in arrivo per locali con più sedi o volume elevato.</div>
+      <details class="glass rounded-xl p-4 reveal">
+        <summary class="font-semibold">Quanto costa?</summary>
+        <div class="text-sm text-neutral-300 mt-2">Puoi iniziare gratis. Piani avanzati in arrivo per più sedi o alto volume.</div>
       </details>
-      <details class="glass rounded-xl p-4">
-        <summary class="font-semibold cursor-pointer">La privacy degli utenti?</summary>
-        <div class="opacity-85 text-sm mt-2">Accesso legato alla presenza fisica: niente gruppi permanenti, niente spam fuori luogo. Conserviamo il minimo indispensabile.</div>
+      <details class="glass rounded-xl p-4 reveal">
+        <summary class="font-semibold">Privacy e dati?</summary>
+        <div class="text-sm text-neutral-300 mt-2">Accesso legato alla presenza fisica: niente gruppi permanenti e niente spam fuori luogo.</div>
       </details>
     </div>
   </section>
 
   <!-- FOOTER -->
-  <footer class="container mx-auto px-4 pb-10 opacity-70 text-xs text-center">
+  <footer class="container mx-auto px-4 pb-10 text-xs text-neutral-300/80 text-center">
     © <script>document.write(new Date().getFullYear())</script> IMIN • GeoChat
     <span class="mx-2">•</span> <a class="underline" href="app.html">Vedi le chat</a>
     <span class="mx-2">•</span> <a class="underline" href="create.html">Crea chat</a>
     <span class="mx-2">•</span> <a class="underline" href="admin.html">Admin</a>
   </footer>
 
+  <script>
+    // reveal on scroll
+    const els=[...document.querySelectorAll('.reveal')];
+    const io=new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('show'); io.unobserve(e.target);} });
+    },{threshold:.12});
+    els.forEach(el=>io.observe(el));
+  </script>
 </body>
 </html>
