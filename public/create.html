@@ -169,7 +169,7 @@
 
       // costruisci dati
       const geojson = pathToClosedGeoJSON(polygon);
-      const lat = center?.lat?.();  // possono essere undefined se succede qualcosa, ok
+      const lat = center?.lat?.();
       const lng = center?.lng?.();
       const address = await reverseGeocode(marker ? marker.getPosition() : center);
 
@@ -178,7 +178,6 @@
       const ownerId = userRes?.user?.id || null;
       if (!ownerId){ alert('Non risulta un utente loggato. Accedi e riprova.'); return; }
 
-      // payload: includo solo campi reali (null è ok perché le colonne ora sono nullable)
       const payload = {
         name,
         description: document.getElementById('desc').value.trim() || null,
@@ -196,7 +195,9 @@
         return;
       }
 
+      // —— Link “alla vecchia maniera”: dominio corrente
       const link = `${location.origin.replace(/\/$/,'')}/join.html?room=${encodeURIComponent(data.id)}`;
+
       document.getElementById('roomLink').textContent = link;
       const qr = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(link)}`;
       const img = document.getElementById('qrImg'); img.src = qr; img.alt = 'QR stanza';
