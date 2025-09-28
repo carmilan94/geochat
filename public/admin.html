@@ -15,16 +15,14 @@
     .grid-cards{display:grid;gap:14px;grid-template-columns:repeat(1,minmax(0,1fr))}
     @media(min-width:700px){ .grid-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(min-width:1024px){ .grid-cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
-    .row{display:flex;align-items:center;gap:.5rem;font-size:.9rem}
-    .row .k{opacity:.7;min-width:90px}
     .qr-wrap{display:flex;gap:10px;align-items:center;justify-content:center}
-    .qr-box{background:#fff;border-radius:12px;padding:8px;width:176px;height:176px;display:flex;align-items:center;justify-content:center}
-    .card-actions a,.card-actions button{white-space:nowrap}
+    .qr-box{background:#fff;border-radius:12px;padding:8px;display:flex;align-items:center;justify-content:center}
+    .qr-box canvas,.qr-box img{width:160px;height:160px;display:block}
   </style>
 
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- QR code (client-side) -->
+  <!-- QR code (client-side). La build UMD espone "QRCode" in window -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
@@ -64,11 +62,10 @@
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  // imposta il dominio principale del tuo sito per i link nel QR
-  const BASE_APP_URL = 'https://geochat-pi.vercel.app'; // ← cambia se usi un dominio diverso
+  // dominio principale per i link nel QR
+  const BASE_APP_URL = 'https://geochat-pi.vercel.app'; // cambia se usi altro dominio
 
   // ========= STATE =========
-  let nextPage = null;
   let loadedCount = 0;
 
   const els = {
@@ -100,7 +97,6 @@
   async function reload(){
     els.roomsGrid.innerHTML = '';
     loadedCount = 0;
-    nextPage = null;
     await loadMore();
   }
 
@@ -108,15 +104,14 @@
     showMsg('');
     const PAGE_SIZE = 24;
 
-    let query = sb
+    const { data, error, count } = await sb
       .from('rooms')
-      .select('id, name, address, created_at, center_lat, center_lng', { count: 'exact' })
+      .select('id, name, address, created_at', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(loadedCount, loadedCount + PAGE_SIZE - 1);
 
-    const { data, error, count } = await query;
-
     if (error) { showMsg('Errore nel caricamento: ' + error.message, true); return; }
+
     if (!data || data.length === 0){
       if (loadedCount === 0) els.roomsGrid.innerHTML = '<div class="opacity-80 text-sm p-3">Nessuna stanza trovata.</div>';
       els.btnMore.classList.add('hidden');
@@ -128,11 +123,8 @@
     loadedCount += data.length;
     els.countText.textContent = `Mostrate: ${loadedCount}${count!=null ? ' / ' + count : ''}`;
 
-    if (count != null && loadedCount < count) {
-      els.btnMore.classList.remove('hidden');
-    } else {
-      els.btnMore.classList.add('hidden');
-    }
+    if (count != null && loadedCount < count) els.btnMore.classList.remove('hidden');
+    else els.btnMore.classList.add('hidden');
   }
 
   function renderRoomCard(room){
@@ -156,23 +148,29 @@
     const qrWrap = document.createElement('div');
     qrWrap.className = 'qr-wrap';
     const qrBox = document.createElement('div');
-    qrBox.className = 'qr-box';
-    const canvas = document.createElement('canvas');
-    canvas.width = 160; canvas.height = 160;
-    qrBox.appendChild(canvas);
+    qrBox.className = 'qr-box rounded-xl';
     qrWrap.appendChild(qrBox);
     card.appendChild(qrWrap);
 
-    // genera il QR (client-side)
-    try {
-      QRCode.toCanvas(canvas, linkJoin, { width: 160, margin: 1 }, (err) => {
-        if (err) console.error('QR error', err);
-      });
-    } catch(e){ console.error(e); }
+    // Canvas principale + fallback IMG
+    const canvas = document.createElement('canvas');
+    canvas.width = 160; canvas.height = 160;
+    qrBox.appendChild(canvas);
+
+    // genera il QR (client-side) – con colori espliciti
+    generateCanvasQR(canvas, linkJoin).catch(()=>{
+      // Fallback: immagine da servizio esterno
+      const img = document.createElement('img');
+      img.alt = 'QR';
+      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(linkJoin)}`;
+      qrBox.innerHTML = '';
+      qrBox.appendChild(img);
+      canvas.__fallbackImg = img; // referenza per download
+    });
 
     // Azioni
     const actions = document.createElement('div');
-    actions.className = 'card-actions flex flex-wrap gap-2 justify-between items-center';
+    actions.className = 'flex flex-wrap gap-2 justify-between items-center';
 
     const leftGroup = document.createElement('div');
     leftGroup.className = 'flex gap-2';
@@ -187,7 +185,7 @@
     const btnDownload = document.createElement('button');
     btnDownload.className = 'chip rounded-lg px-3 py-1.5 text-sm';
     btnDownload.textContent = 'Scarica QR (PNG)';
-    btnDownload.onclick = ()=> downloadCanvas(canvas, `qr_${room.id}.png`);
+    btnDownload.onclick = ()=> downloadQR(qrBox, `qr_${room.id}.png`);
 
     leftGroup.appendChild(btnCopy);
     leftGroup.appendChild(btnDownload);
@@ -212,29 +210,54 @@
     els.roomsGrid.appendChild(card);
   }
 
+  // ======== QR helpers ========
+  async function generateCanvasQR(canvas, text){
+    // Usa promise (alcuni browser non chiamano correttamente il callback)
+    await QRCode.toCanvas(
+      canvas,
+      text,
+      {
+        width: 160,
+        margin: 1,
+        color: {
+          dark: '#000000',   // moduli neri
+          light: '#ffffff'   // sfondo bianco
+        }
+      }
+    );
+  }
+
+  function downloadQR(qrBox, filename){
+    // se c'è un canvas, scarica quello; altrimenti l'immagine di fallback
+    const canvas = qrBox.querySelector('canvas');
+    const img = qrBox.querySelector('img');
+
+    let url;
+    if (canvas && canvas.toDataURL) {
+      url = canvas.toDataURL('image/png');
+    } else if (img && img.src) {
+      url = img.src; // scarica l'immagine dal servizio
+    } else {
+      toast('QR non disponibile.');
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'qr.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
   // ========= UTILS =========
   function showMsg(t, isErr){
-    if (!t){ els.msg.classList.add('hidden'); els.msg.textContent=''; return; }
-    els.msg.classList.remove('hidden');
-    els.msg.textContent = t;
+    els.msg.classList.toggle('hidden', !t);
+    els.msg.textContent = t || '';
     els.msg.style.color = isErr ? '#fecaca' : '#e5e7eb';
   }
-  function formatDate(iso){
-    if (!iso) return '—';
-    try { return new Date(iso).toLocaleString(); } catch{ return iso; }
-  }
+  function toast(t){ showMsg(t,false); clearTimeout(window.__t); window.__t=setTimeout(()=>showMsg('',false),1200); }
+  function formatDate(iso){ try { return new Date(iso).toLocaleString(); } catch { return iso||'—'; } }
   function escapeHtml(s){return (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-  function toast(t){
-    showMsg(t,false);
-    clearTimeout(window.__toastT);
-    window.__toastT = setTimeout(()=> showMsg('',false), 1500);
-  }
-  function downloadCanvas(canvas, filename){
-    const link = document.createElement('a');
-    link.download = filename || 'qr.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  }
 </script>
 </body>
 </html>
