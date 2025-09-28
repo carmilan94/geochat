@@ -3,149 +3,237 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GeoChat • Admin</title>
+  <title>IMIN • Admin</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="data:,">
   <style>
-    :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233;}
-    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea;}
+    :root{--g1:#0f0f10;--g2:#1a1a1c;--acc1:#ff8a00;--acc2:#ffb233}
+    body{background:linear-gradient(180deg,var(--g1),var(--g2));color:#eaeaea}
     .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
-    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:700}
     .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
-    a.link{color:#ffd18a;text-decoration:underline}
+    .btn-main{background:linear-gradient(90deg,var(--acc1),var(--acc2));color:#111;font-weight:800}
+    .grid-cards{display:grid;gap:14px;grid-template-columns:repeat(1,minmax(0,1fr))}
+    @media(min-width:700px){ .grid-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(min-width:1024px){ .grid-cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    .row{display:flex;align-items:center;gap:.5rem;font-size:.9rem}
+    .row .k{opacity:.7;min-width:90px}
+    .qr-wrap{display:flex;gap:10px;align-items:center;justify-content:center}
+    .qr-box{background:#fff;border-radius:12px;padding:8px;width:176px;height:176px;display:flex;align-items:center;justify-content:center}
+    .card-actions a,.card-actions button{white-space:nowrap}
   </style>
+
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- QR code (client-side) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
 <header class="w-full py-4 px-5 flex items-center justify-between">
   <div class="flex items-center gap-2">
-    <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-bold text-black">GC</div>
-    <div class="font-extrabold text-xl">GeoChat • Admin</div>
+    <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center font-bold text-black">IM</div>
+    <div class="font-extrabold text-xl">IMIN • Admin</div>
   </div>
   <nav class="flex items-center gap-3 text-sm">
     <a href="index.html" class="chip px-3 py-1.5 rounded-lg">Home</a>
     <a href="create.html" class="chip px-3 py-1.5 rounded-lg">Crea chat</a>
-    <button id="logoutBtn" class="chip px-3 py-1.5 rounded-lg hidden">Esci</button>
+    <a id="authLink" href="auth.html" class="chip px-3 py-1.5 rounded-lg">Entra</a>
   </nav>
 </header>
 
-<main class="max-w-5xl mx-auto px-4 pb-24">
-  <div id="notice" class="glass p-4 rounded-xl mb-4 hidden"></div>
+<main class="max-w-7xl mx-auto px-4 pb-20">
+  <div id="msg" class="glass rounded-xl p-3 mb-4 text-sm hidden"></div>
 
-  <section id="listWrap" class="glass rounded-2xl p-5 hidden">
-    <div class="flex items-center justify-between mb-3">
-      <h2 class="text-lg font-bold">Le tue stanze</h2>
-      <a class="link text-sm" href="create.html">+ Crea nuova stanza</a>
+  <section class="glass rounded-2xl p-4 mb-4">
+    <h2 class="text-lg font-bold mb-2">Stanze (tutte)</h2>
+    <div class="text-sm opacity-80 mb-2">Qui vedi tutte le chat create. Per ogni stanza puoi scaricare il QR del link di ingresso.</div>
+    <div id="roomsGrid" class="grid-cards"></div>
+
+    <div class="mt-4 flex items-center justify-between">
+      <div id="countText" class="text-sm opacity-80"></div>
+      <div class="flex gap-2">
+        <button id="btnReload" class="chip rounded-lg px-3 py-1.5 text-sm">🔄 Ricarica</button>
+        <button id="btnMore" class="chip rounded-lg px-3 py-1.5 text-sm hidden">Mostra altri</button>
+      </div>
     </div>
-    <div id="roomsList" class="divide-y divide-white/10"></div>
   </section>
 </main>
 
 <script>
-  // --- SUPABASE CONFIG
-  const SUPABASE_URL = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
+  // ========= CONFIG =========
+  const SUPABASE_URL  = 'https://lkdtvaiwlnkxwvlimvqs.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZHR2YWl3bG5reHd2bGltdnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3OTE4MDMsImV4cCI6MjA3MzM2NzgwM30.3onrM-EBuDJuNa27_XI6LFqMwUHI9qecvLxrOElM3P8';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  const notice = document.getElementById('notice');
-  const listWrap = document.getElementById('listWrap');
-  const roomsList = document.getElementById('roomsList');
-  const logoutBtn = document.getElementById('logoutBtn');
+  // imposta il dominio principale del tuo sito per i link nel QR
+  const BASE_APP_URL = 'https://geochat-pi.vercel.app'; // ← cambia se usi un dominio diverso
 
-  // --- UI helpers
-  function showNotice(html){
-    notice.innerHTML = html;
-    notice.classList.remove('hidden');
-  }
-  function hideNotice(){
-    notice.classList.add('hidden');
-    notice.innerHTML = '';
-  }
+  // ========= STATE =========
+  let nextPage = null;
+  let loadedCount = 0;
 
-  // --- secure route: require auth
-  (async () => {
-    const { data: { session } } = await sb.auth.getSession();
+  const els = {
+    msg: document.getElementById('msg'),
+    roomsGrid: document.getElementById('roomsGrid'),
+    countText: document.getElementById('countText'),
+    btnReload: document.getElementById('btnReload'),
+    btnMore: document.getElementById('btnMore'),
+    authLink: document.getElementById('authLink'),
+  };
 
-    if (!session) {
-      // nessuna sessione sul DOMINIO CORRENTE
-      showNotice('<div class="text-amber-300">Auth session missing! Devi accedere.</div><div class="mt-2"><a class="link" href="auth.html?next=admin.html">Vai al login</a></div>');
-      return;
+  // ========= INIT =========
+  (async function init(){
+    const { data:{ session } } = await sb.auth.getSession();
+    if (session) {
+      els.authLink.textContent = 'Esci';
+      els.authLink.onclick = async (e)=>{ e.preventDefault(); await sb.auth.signOut(); location.href='index.html'; };
+    } else {
+      els.authLink.textContent = 'Entra';
+      els.authLink.href = 'auth.html';
     }
 
-    // mostra logout
-    logoutBtn.classList.remove('hidden');
-    logoutBtn.onclick = async () => {
-      await sb.auth.signOut();
-      location.href = 'auth.html?next=admin.html';
-    };
+    els.btnReload.onclick = reload;
+    els.btnMore.onclick = loadMore;
 
-    hideNotice();
-    listWrap.classList.remove('hidden');
-    loadRooms(session.user.id);
+    await reload();
   })();
 
-  async function loadRooms(ownerId){
-    roomsList.innerHTML = '<div class="py-6 text-sm opacity-80">Caricamento…</div>';
+  async function reload(){
+    els.roomsGrid.innerHTML = '';
+    loadedCount = 0;
+    nextPage = null;
+    await loadMore();
+  }
 
-    const { data, error } = await sb
+  async function loadMore(){
+    showMsg('');
+    const PAGE_SIZE = 24;
+
+    let query = sb
       .from('rooms')
-      .select('id,name,address,description,created_at')
-      .eq('owner_id', ownerId)
-      .order('created_at', { ascending: false });
+      .select('id, name, address, created_at, center_lat, center_lng', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(loadedCount, loadedCount + PAGE_SIZE - 1);
 
-    if (error){
-      roomsList.innerHTML = `<div class="py-6 text-sm text-red-300">Errore: ${error.message}</div>`;
+    const { data, error, count } = await query;
+
+    if (error) { showMsg('Errore nel caricamento: ' + error.message, true); return; }
+    if (!data || data.length === 0){
+      if (loadedCount === 0) els.roomsGrid.innerHTML = '<div class="opacity-80 text-sm p-3">Nessuna stanza trovata.</div>';
+      els.btnMore.classList.add('hidden');
+      els.countText.textContent = `Totale: ${count || 0}`;
       return;
     }
 
-    if (!data || !data.length){
-      roomsList.innerHTML = '<div class="py-6 text-sm opacity-80">Nessuna stanza ancora creata.</div>';
-      return;
+    data.forEach(room => renderRoomCard(room));
+    loadedCount += data.length;
+    els.countText.textContent = `Mostrate: ${loadedCount}${count!=null ? ' / ' + count : ''}`;
+
+    if (count != null && loadedCount < count) {
+      els.btnMore.classList.remove('hidden');
+    } else {
+      els.btnMore.classList.add('hidden');
     }
-
-    roomsList.innerHTML = data.map(r => {
-      const created = r.created_at ? new Date(r.created_at).toLocaleString() : '';
-      const address = r.address || '';
-      const desc = r.description ? `<div class="text-xs opacity-80 mt-1">${escapeHtml(r.description)}</div>` : '';
-      const joinUrl = `join.html?room=${encodeURIComponent(r.id)}`;
-      return `
-        <div class="py-4 flex items-start gap-3">
-          <div class="flex-1">
-            <div class="font-semibold">${escapeHtml(r.name || 'Senza nome')}</div>
-            <div class="text-xs opacity-70">${created} ${address ? ' • ' + escapeHtml(address) : ''}</div>
-            ${desc}
-            <div class="mt-2 text-xs">
-              <a class="link" href="${joinUrl}" target="_blank">Apri pagina di ingresso</a>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <button class="chip px-3 py-1.5 rounded-lg text-sm" onclick="copyJoin('${joinUrl}')">Copia link</button>
-            <button class="chip px-3 py-1.5 rounded-lg text-sm" onclick="delRoom('${r.id}')">Elimina</button>
-          </div>
-        </div>
-      `;
-    }).join('');
   }
 
-  function escapeHtml(s){
-    return (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  function renderRoomCard(room){
+    const linkJoin = `${BASE_APP_URL}/join.html?room=${encodeURIComponent(room.id)}`;
+    const linkChat = `${BASE_APP_URL}/chat.html?room=${encodeURIComponent(room.id)}`;
+
+    const card = document.createElement('div');
+    card.className = 'glass rounded-2xl p-4 flex flex-col gap-3';
+
+    // header
+    const h = document.createElement('div');
+    h.innerHTML = `
+      <div class="font-bold text-lg">${escapeHtml(room.name || 'Chat')}</div>
+      <div class="text-xs opacity-80">${escapeHtml(room.address || '—')}</div>
+      <div class="text-xs opacity-60">ID: <code>${room.id}</code></div>
+      <div class="text-xs opacity-60">Creato: ${formatDate(room.created_at)}</div>
+    `;
+    card.appendChild(h);
+
+    // QR + actions
+    const qrWrap = document.createElement('div');
+    qrWrap.className = 'qr-wrap';
+    const qrBox = document.createElement('div');
+    qrBox.className = 'qr-box';
+    const canvas = document.createElement('canvas');
+    canvas.width = 160; canvas.height = 160;
+    qrBox.appendChild(canvas);
+    qrWrap.appendChild(qrBox);
+    card.appendChild(qrWrap);
+
+    // genera il QR (client-side)
+    try {
+      QRCode.toCanvas(canvas, linkJoin, { width: 160, margin: 1 }, (err) => {
+        if (err) console.error('QR error', err);
+      });
+    } catch(e){ console.error(e); }
+
+    // Azioni
+    const actions = document.createElement('div');
+    actions.className = 'card-actions flex flex-wrap gap-2 justify-between items-center';
+
+    const leftGroup = document.createElement('div');
+    leftGroup.className = 'flex gap-2';
+    const btnCopy = document.createElement('button');
+    btnCopy.className = 'chip rounded-lg px-3 py-1.5 text-sm';
+    btnCopy.textContent = 'Copia link';
+    btnCopy.onclick = async ()=>{
+      try { await navigator.clipboard.writeText(linkJoin); toast('Link copiato!'); }
+      catch{ toast('Impossibile copiare'); }
+    };
+
+    const btnDownload = document.createElement('button');
+    btnDownload.className = 'chip rounded-lg px-3 py-1.5 text-sm';
+    btnDownload.textContent = 'Scarica QR (PNG)';
+    btnDownload.onclick = ()=> downloadCanvas(canvas, `qr_${room.id}.png`);
+
+    leftGroup.appendChild(btnCopy);
+    leftGroup.appendChild(btnDownload);
+
+    const rightGroup = document.createElement('div');
+    rightGroup.className = 'flex gap-2';
+    const aJoin = document.createElement('a');
+    aJoin.className = 'chip rounded-lg px-3 py-1.5 text-sm';
+    aJoin.href = linkJoin; aJoin.target = '_blank'; aJoin.textContent = 'Apri Join';
+
+    const aChat = document.createElement('a');
+    aChat.className = 'btn-main rounded-lg px-3 py-1.5 text-sm';
+    aChat.href = linkChat; aChat.target = '_blank'; aChat.textContent = 'Apri Chat';
+
+    rightGroup.appendChild(aJoin);
+    rightGroup.appendChild(aChat);
+
+    actions.appendChild(leftGroup);
+    actions.appendChild(rightGroup);
+    card.appendChild(actions);
+
+    els.roomsGrid.appendChild(card);
   }
 
-  async function delRoom(id){
-    if (!confirm('Eliminare definitivamente questa stanza?')) return;
-    const { error } = await sb.from('rooms').delete().eq('id', id);
-    if (error){ alert('Errore: ' + error.message); return; }
-    location.reload();
+  // ========= UTILS =========
+  function showMsg(t, isErr){
+    if (!t){ els.msg.classList.add('hidden'); els.msg.textContent=''; return; }
+    els.msg.classList.remove('hidden');
+    els.msg.textContent = t;
+    els.msg.style.color = isErr ? '#fecaca' : '#e5e7eb';
   }
-
-  async function copyJoin(path){
-    const url = `${location.origin.replace(/\/$/, '')}/${path}`;
-    try{
-      await navigator.clipboard.writeText(url);
-      showNotice(`<div class="text-green-300">Link copiato: ${escapeHtml(url)}</div>`);
-      setTimeout(hideNotice, 2500);
-    }catch{
-      alert(url);
-    }
+  function formatDate(iso){
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleString(); } catch{ return iso; }
+  }
+  function escapeHtml(s){return (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+  function toast(t){
+    showMsg(t,false);
+    clearTimeout(window.__toastT);
+    window.__toastT = setTimeout(()=> showMsg('',false), 1500);
+  }
+  function downloadCanvas(canvas, filename){
+    const link = document.createElement('a');
+    link.download = filename || 'qr.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
   }
 </script>
 </body>
